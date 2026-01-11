@@ -144,6 +144,21 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     };
   }, [nodes.length]);
 
+  // Get theme colors from CSS variables
+  const getThemeColors = useCallback(() => {
+    const style = getComputedStyle(document.documentElement);
+    const primary = style.getPropertyValue('--primary').trim();
+    const accent = style.getPropertyValue('--accent').trim();
+    const foreground = style.getPropertyValue('--foreground').trim();
+    
+    return {
+      primary: `hsl(${primary})`,
+      primaryAlpha: (alpha: number) => `hsla(${primary}, ${alpha})`,
+      accent: `hsl(${accent})`,
+      foreground: `hsl(${foreground})`,
+    };
+  }, []);
+
   // Draw canvas
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -157,6 +172,9 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     canvas.height = height * 2;
     ctx.scale(2, 2);
 
+    // Get current theme colors
+    const colors = getThemeColors();
+
     // Clear
     ctx.clearRect(0, 0, width, height);
 
@@ -166,7 +184,7 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     ctx.scale(zoom, zoom);
 
     // Draw connections
-    ctx.strokeStyle = 'hsla(16, 90%, 65%, 0.2)';
+    ctx.strokeStyle = colors.primaryAlpha(0.2);
     ctx.lineWidth = 1.5;
     
     nodes.forEach(node => {
@@ -195,8 +213,8 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
           node.x, node.y, 0,
           node.x, node.y, radius * 3
         );
-        gradient.addColorStop(0, 'hsla(16, 90%, 65%, 0.3)');
-        gradient.addColorStop(1, 'hsla(16, 90%, 65%, 0)');
+        gradient.addColorStop(0, colors.primaryAlpha(0.3));
+        gradient.addColorStop(1, colors.primaryAlpha(0));
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius * 3, 0, Math.PI * 2);
@@ -206,15 +224,11 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
       // Node circle
       ctx.beginPath();
       ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = isSelected 
-        ? 'hsl(16, 90%, 65%)' 
-        : isHovered 
-          ? 'hsl(16, 90%, 70%)' 
-          : 'hsl(200, 80%, 60%)';
+      ctx.fillStyle = isSelected || isHovered ? colors.primary : colors.accent;
       ctx.fill();
 
       // Node label
-      ctx.fillStyle = 'hsl(45, 20%, 95%)';
+      ctx.fillStyle = colors.foreground;
       ctx.font = `${isSelected ? 'bold ' : ''}12px Nunito`;
       ctx.textAlign = 'center';
       ctx.fillText(
@@ -225,7 +239,7 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     });
 
     ctx.restore();
-  }, [nodes, selectedNote, hoveredNode, zoom, pan]);
+  }, [nodes, selectedNote, hoveredNode, zoom, pan, getThemeColors]);
 
   // Handle mouse events
   const handleMouseDown = (e: React.MouseEvent) => {

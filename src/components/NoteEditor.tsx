@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '@/hooks/useNotes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { MarkdownToolbar } from './MarkdownToolbar';
 
 interface NoteEditorProps {
   note: Note | null;
@@ -30,6 +31,7 @@ export const NoteEditor = ({
   const [content, setContent] = useState('');
   const [copied, setCopied] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -191,16 +193,28 @@ export const NoteEditor = ({
         </Popover>
       </div>
 
+      {/* Markdown Toolbar (only in edit mode) */}
+      {!isPreview && (
+        <MarkdownToolbar 
+          textareaRef={textareaRef} 
+          content={content} 
+          onContentChange={setContent} 
+        />
+      )}
+
       {/* Editor / Preview */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-hidden flex flex-col">
         {isPreview ? (
-          <MarkdownRenderer content={content} className="animate-fade-in" />
+          <div className="flex-1 overflow-y-auto p-4">
+            <MarkdownRenderer content={content} className="animate-fade-in" />
+          </div>
         ) : (
           <Textarea
+            ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Start writing your thoughts... Use Markdown for formatting!"
-            className="editor-content w-full text-lg leading-relaxed placeholder:text-muted-foreground/50 font-mono"
+            className="flex-1 w-full text-lg leading-relaxed placeholder:text-muted-foreground/50 font-mono p-4 bg-transparent resize-none border-none focus:outline-none focus:ring-0 focus-visible:ring-0"
           />
         )}
       </div>

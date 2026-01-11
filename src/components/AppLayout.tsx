@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { NotesList } from './NotesList';
 import { NoteEditor } from './NoteEditor';
+import { GraphView } from './GraphView';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { useNotes, Note } from '@/hooks/useNotes';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X } from 'lucide-react';
+import { LogOut, Sparkles, X, Network } from 'lucide-react';
 
 export const AppLayout = () => {
   const { notes, loading, createNote, updateNote, deleteNote } = useNotes();
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showGraph, setShowGraph] = useState(false);
 
   const handleCreateNote = async () => {
     const newNote = await createNote();
@@ -24,6 +27,7 @@ export const AppLayout = () => {
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
+    setShowGraph(false);
   };
 
   const handleDeleteNote = async (id: string) => {
@@ -42,6 +46,16 @@ export const AppLayout = () => {
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
+      {/* Graph View Modal */}
+      {showGraph && (
+        <GraphView
+          notes={notes}
+          selectedNote={selectedNote}
+          onSelectNote={handleSelectNote}
+          onClose={() => setShowGraph(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`
@@ -63,7 +77,18 @@ export const AppLayout = () => {
                 Notes<span className="text-primary">Hub</span>
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {/* Graph View Button */}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setShowGraph(true)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Graph View"
+              >
+                <Network className="w-4 h-4" />
+              </Button>
+              <ThemeSwitcher />
               <Button
                 variant="ghost"
                 size="icon-sm"

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Sparkles, ArrowLeft, Calendar, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { format } from 'date-fns';
 
 interface SharedNote {
@@ -108,11 +109,11 @@ const SharedNote = () => {
               {format(new Date(note.updated_at), 'MMMM d, yyyy')}
             </span>
           </div>
-          <div className="prose prose-invert max-w-none">
-            <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap">
-              {note.content || 'This note is empty.'}
-            </p>
-          </div>
+          {note.content ? (
+            <MarkdownRenderer content={note.content} />
+          ) : (
+            <p className="text-muted-foreground italic">This note is empty.</p>
+          )}
         </article>
       </main>
     </div>

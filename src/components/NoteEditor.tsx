@@ -3,7 +3,7 @@ import { Note } from '@/hooks/useNotes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Share2, Link, Check, Copy, Menu, Sparkles } from 'lucide-react';
+import { Share2, Check, Copy, Menu, Sparkles, Eye, Edit3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Popover,
@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface NoteEditorProps {
   note: Note | null;
@@ -28,12 +29,14 @@ export const NoteEditor = ({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isPreview, setIsPreview] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (note) {
       setTitle(note.title);
       setContent(note.content);
+      setIsPreview(false); // Reset to edit mode on note change
     }
   }, [note?.id]);
 
@@ -87,6 +90,9 @@ export const NoteEditor = ({
           <p className="text-muted-foreground max-w-sm">
             Select a note from the sidebar or create a new one to get started
           </p>
+          <p className="text-muted-foreground/60 text-sm mt-4 max-w-sm">
+            💡 Tip: Use Markdown for formatting and [[Note Title]] to link notes
+          </p>
         </div>
       </div>
     );
@@ -112,7 +118,28 @@ export const NoteEditor = ({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Note title..."
           className="flex-1 text-xl font-bold bg-transparent border-none h-auto p-0 focus-visible:ring-0 placeholder:text-muted-foreground"
+          disabled={isPreview}
         />
+
+        {/* Preview Toggle */}
+        <Button
+          variant={isPreview ? 'soft' : 'ghost'}
+          size="sm"
+          onClick={() => setIsPreview(!isPreview)}
+          className="gap-2"
+        >
+          {isPreview ? (
+            <>
+              <Edit3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Edit</span>
+            </>
+          ) : (
+            <>
+              <Eye className="w-4 h-4" />
+              <span className="hidden sm:inline">Preview</span>
+            </>
+          )}
+        </Button>
 
         <Popover>
           <PopoverTrigger asChild>
@@ -164,21 +191,32 @@ export const NoteEditor = ({
         </Popover>
       </div>
 
-      {/* Editor */}
+      {/* Editor / Preview */}
       <div className="flex-1 overflow-y-auto p-4">
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Start writing your thoughts..."
-          className="editor-content w-full text-lg leading-relaxed placeholder:text-muted-foreground/50"
-        />
+        {isPreview ? (
+          <MarkdownRenderer content={content} className="animate-fade-in" />
+        ) : (
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Start writing your thoughts... Use Markdown for formatting!"
+            className="editor-content w-full text-lg leading-relaxed placeholder:text-muted-foreground/50 font-mono"
+          />
+        )}
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
-        <span>Last saved {new Date(note.updated_at).toLocaleTimeString()}</span>
-        <span className="mx-2">•</span>
-        <span>{content.length} characters</span>
+      <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
+        <div>
+          <span>Last saved {new Date(note.updated_at).toLocaleTimeString()}</span>
+          <span className="mx-2">•</span>
+          <span>{content.length} characters</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-muted-foreground/60">
+            {isPreview ? '📖 Preview mode' : '✍️ Edit mode'}
+          </span>
+        </div>
       </div>
     </div>
   );

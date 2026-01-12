@@ -3,7 +3,7 @@ import { Note } from '@/hooks/useNotes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Share2, Check, Copy, Menu, Sparkles, Eye, Edit3 } from 'lucide-react';
+import { Share2, Check, Copy, Menu, Sparkles, Eye, Edit3, Users, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Popover,
@@ -13,19 +13,36 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { MarkdownToolbar } from './MarkdownToolbar';
+import { ShareDialog } from './ShareDialog';
+
+interface BaseNote {
+  id: string;
+  title: string;
+  content: string;
+  updated_at: string;
+}
 
 interface NoteEditorProps {
-  note: Note | null;
-  onUpdateNote: (id: string, updates: Partial<Pick<Note, 'title' | 'content' | 'is_shared'>>) => void;
+  note: BaseNote | null;
+  onUpdateNote: (id: string, updates: Partial<Pick<BaseNote, 'title' | 'content'>>) => void;
   onToggleSidebar: () => void;
   showSidebarToggle: boolean;
+  isSharedNote?: boolean;
+  canEdit?: boolean;
 }
+
+// Type guard to check if note is a full Note
+const isFullNote = (note: BaseNote): note is Note => {
+  return 'is_shared' in note && 'share_id' in note;
+};
 
 export const NoteEditor = ({
   note,
   onUpdateNote,
   onToggleSidebar,
   showSidebarToggle,
+  isSharedNote = false,
+  canEdit = true,
 }: NoteEditorProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -38,16 +55,17 @@ export const NoteEditor = ({
     if (note) {
       setTitle(note.title);
       setContent(note.content);
-      setIsPreview(false); // Reset to edit mode on note change
+      // Set to preview mode for view-only shared notes
+      setIsPreview(isSharedNote && !canEdit);
     }
-  }, [note?.id]);
+  }, [note?.id, isSharedNote, canEdit]);
 
   // Debounced save
   const saveNote = useCallback(() => {
-    if (note && (title !== note.title || content !== note.content)) {
+    if (note && canEdit && (title !== note.title || content !== note.content)) {
       onUpdateNote(note.id, { title, content });
     }
-  }, [note, title, content, onUpdateNote]);
+  }, [note, title, content, onUpdateNote, canEdit]);
 
   useEffect(() => {
     const timer = setTimeout(saveNote, 500);
@@ -55,8 +73,8 @@ export const NoteEditor = ({
   }, [title, content, saveNote]);
 
   const handleShare = () => {
-    if (note) {
-      onUpdateNote(note.id, { is_shared: !note.is_shared });
+    if (note && isFullNote(note)) {
+      onUpdateNote(note.id, { is_shared: !note.is_shared } as any);
       toast({
         title: note.is_shared ? 'Link disabled' : 'Sharing enabled!',
         description: note.is_shared 
@@ -67,7 +85,7 @@ export const NoteEditor = ({
   };
 
   const copyShareLink = () => {
-    if (note) {
+    if (note && isFullNote(note)) {
       const shareUrl = `${window.location.origin}/shared/${note.share_id}`;
       navigator.clipboard.writeText(shareUrl);
       setCopied(true);
@@ -100,6 +118,8 @@ export const NoteEditor = ({
     );
   }
 
+  const fullNote = isFullNote(note) ? note : null;
+
   return (
     <div className="h-full flex flex-col bg-background animate-fade-in">
       {/* Header */}
@@ -120,81 +140,106 @@ export const NoteEditor = ({
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Note title..."
           className="flex-1 text-xl font-bold bg-transparent border-none h-auto p-0 focus-visible:ring-0 placeholder:text-muted-foreground"
-          disabled={isPreview}
+          disabled={isPreview || !canEdit}
         />
 
+        {/* View-only indicator for shared notes */}
+        {isSharedNote && !canEdit && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground bg-secondary px-2 py-1 rounded">
+            <Lock className="w-3 h-3" />
+            View only
+          </div>
+        )}
+
         {/* Preview Toggle */}
-        <Button
-          variant={isPreview ? 'soft' : 'ghost'}
-          size="sm"
-          onClick={() => setIsPreview(!isPreview)}
-          className="gap-2"
-        >
-          {isPreview ? (
-            <>
-              <Edit3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Edit</span>
-            </>
-          ) : (
-            <>
-              <Eye className="w-4 h-4" />
-              <span className="hidden sm:inline">Preview</span>
-            </>
-          )}
-        </Button>
+        {canEdit && (
+          <Button
+            variant={isPreview ? 'soft' : 'ghost'}
+            size="sm"
+            onClick={() => setIsPreview(!isPreview)}
+            className="gap-2"
+          >
+            {isPreview ? (
+              <>
+                <Edit3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Edit</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" />
+                <span className="hidden sm:inline">Preview</span>
+              </>
+            )}
+          </Button>
+        )}
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant={note.is_shared ? 'soft' : 'ghost'}
-              size="icon"
-              className="shrink-0"
-            >
-              <Share2 className="w-5 h-5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-semibold">Share this note</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Anyone with the link can view
-                  </p>
-                </div>
-                <Switch
-                  checked={note.is_shared}
-                  onCheckedChange={handleShare}
-                />
-              </div>
+        {/* Share with specific people - only for own notes */}
+        {fullNote && !isSharedNote && (
+          <ShareDialog 
+            note={fullNote} 
+            trigger={
+              <Button variant="ghost" size="icon" className="shrink-0">
+                <Users className="w-5 h-5" />
+              </Button>
+            }
+          />
+        )}
 
-              {note.is_shared && (
-                <div className="flex gap-2 animate-scale-in">
-                  <Input
-                    value={`${window.location.origin}/shared/${note.share_id}`}
-                    readOnly
-                    className="text-sm bg-secondary"
+        {/* Public link sharing - only for own notes */}
+        {fullNote && !isSharedNote && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={fullNote.is_shared ? 'soft' : 'ghost'}
+                size="icon"
+                className="shrink-0"
+              >
+                <Share2 className="w-5 h-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold">Public link</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Anyone with the link can view
+                    </p>
+                  </div>
+                  <Switch
+                    checked={fullNote.is_shared}
+                    onCheckedChange={handleShare}
                   />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={copyShareLink}
-                  >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-success" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
                 </div>
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
+
+                {fullNote.is_shared && (
+                  <div className="flex gap-2 animate-scale-in">
+                    <Input
+                      value={`${window.location.origin}/shared/${fullNote.share_id}`}
+                      readOnly
+                      className="text-sm bg-secondary"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={copyShareLink}
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-success" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
-      {/* Markdown Toolbar (only in edit mode) */}
-      {!isPreview && (
+      {/* Markdown Toolbar (only in edit mode and can edit) */}
+      {!isPreview && canEdit && (
         <MarkdownToolbar 
           textareaRef={textareaRef} 
           content={content} 
@@ -204,7 +249,7 @@ export const NoteEditor = ({
 
       {/* Editor / Preview */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        {isPreview ? (
+        {isPreview || !canEdit ? (
           <div className="flex-1 overflow-y-auto p-4">
             <MarkdownRenderer content={content} className="animate-fade-in" />
           </div>
@@ -228,7 +273,7 @@ export const NoteEditor = ({
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden sm:inline text-muted-foreground/60">
-            {isPreview ? '📖 Preview mode' : '✍️ Edit mode'}
+            {!canEdit ? '🔒 View only' : isPreview ? '📖 Preview mode' : '✍️ Edit mode'}
           </span>
         </div>
       </div>

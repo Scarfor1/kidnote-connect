@@ -1,5 +1,6 @@
 import { Note } from '@/hooks/useNotes';
-import { Plus, Search, FileText, Share2, Trash2 } from 'lucide-react';
+import { SharedNote } from '@/hooks/useNoteShares';
+import { Plus, Search, FileText, Share2, Trash2, Users, Eye, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -18,24 +19,34 @@ import {
 
 interface NotesListProps {
   notes: Note[];
-  selectedNote: Note | null;
-  onSelectNote: (note: Note) => void;
+  sharedNotes: SharedNote[];
+  selectedNote: Note | SharedNote | null;
+  onSelectNote: (note: Note | SharedNote) => void;
   onCreateNote: () => void;
   onDeleteNote: (id: string) => void;
   loading: boolean;
+  sharedLoading: boolean;
 }
 
 export const NotesList = ({
   notes,
+  sharedNotes,
   selectedNote,
   onSelectNote,
   onCreateNote,
   onDeleteNote,
   loading,
+  sharedLoading,
 }: NotesListProps) => {
   const [search, setSearch] = useState('');
 
   const filteredNotes = notes.filter(
+    (note) =>
+      note.title.toLowerCase().includes(search.toLowerCase()) ||
+      note.content.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const filteredSharedNotes = sharedNotes.filter(
     (note) =>
       note.title.toLowerCase().includes(search.toLowerCase()) ||
       note.content.toLowerCase().includes(search.toLowerCase())
@@ -157,6 +168,61 @@ export const NotesList = ({
               </div>
             </div>
           ))
+        )}
+
+        {/* Shared with me section */}
+        {filteredSharedNotes.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 py-2 mt-4 border-t border-sidebar-border">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Shared with me
+              </span>
+            </div>
+            {filteredSharedNotes.map((note, index) => (
+              <div
+                key={note.id}
+                className={`note-card group animate-slide-up ${
+                  selectedNote?.id === note.id ? 'active' : ''
+                }`}
+                style={{ animationDelay: `${(filteredNotes.length + index) * 0.05}s` }}
+                onClick={() => onSelectNote(note)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-card-foreground truncate">
+                      {note.title || 'Untitled'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground truncate mt-1">
+                      {note.content || 'Empty note...'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <span>{formatDistanceToNow(new Date(note.updated_at), { addSuffix: true })}</span>
+                      <span className="flex items-center gap-1 text-primary">
+                        {note.permission === 'edit' ? (
+                          <>
+                            <Edit3 className="w-3 h-3" />
+                            Can edit
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3 h-3" />
+                            View only
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {sharedLoading && (
+          <div className="flex items-center justify-center py-4">
+            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </div>
         )}
       </div>
     </div>

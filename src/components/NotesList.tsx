@@ -143,7 +143,10 @@ export const NotesList = ({
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => onDeleteNote(note.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteNote(note.id);
+                        }}
                         className="bg-destructive hover:bg-destructive/90"
                       >
                         Delete

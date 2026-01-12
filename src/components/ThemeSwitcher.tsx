@@ -7,9 +7,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-type Theme = 'dark' | 'light' | 'ocean' | 'forest' | 'sunset';
+type Theme = 'mono' | 'dark' | 'light' | 'ocean' | 'forest' | 'sunset';
 
 const themes: { id: Theme; name: string; icon: string; colors: string }[] = [
+  { id: 'mono', name: 'Mono', icon: '⚫', colors: 'bg-black' },
   { id: 'dark', name: 'Dark', icon: '🌙', colors: 'bg-zinc-900' },
   { id: 'light', name: 'Light', icon: '☀️', colors: 'bg-amber-50' },
   { id: 'ocean', name: 'Ocean', icon: '🌊', colors: 'bg-blue-900' },
@@ -18,7 +19,7 @@ const themes: { id: Theme; name: string; icon: string; colors: string }[] = [
 ];
 
 export const ThemeSwitcher = () => {
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>('mono');
   const [open, setOpen] = useState(false);
 
   useEffect(() => {

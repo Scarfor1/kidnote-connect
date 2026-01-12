@@ -118,6 +118,10 @@ export const useNotes = () => {
   };
 
   const deleteNote = async (id: string) => {
+    // Optimistic update - remove from local state immediately
+    const previousNotes = notes;
+    setNotes(notes.filter(note => note.id !== id));
+    
     try {
       const { error } = await supabase
         .from('notes')
@@ -131,6 +135,8 @@ export const useNotes = () => {
         description: "Note deleted",
       });
     } catch (error: any) {
+      // Rollback on error
+      setNotes(previousNotes);
       toast({
         title: "Oops!",
         description: "Couldn't delete note",

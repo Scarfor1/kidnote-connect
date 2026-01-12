@@ -3,10 +3,16 @@ import { Note } from '@/hooks/useNotes';
 import { X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+interface BaseNote {
+  id: string;
+  title: string;
+  content: string;
+}
+
 interface GraphViewProps {
-  notes: Note[];
-  selectedNote: Note | null;
-  onSelectNote: (note: Note) => void;
+  notes: BaseNote[];
+  selectedNote: BaseNote | null;
+  onSelectNote: (note: BaseNote) => void;
   onClose: () => void;
 }
 

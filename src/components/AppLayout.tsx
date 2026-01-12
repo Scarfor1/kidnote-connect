@@ -4,14 +4,18 @@ import { NoteEditor } from './NoteEditor';
 import { GraphView } from './GraphView';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { useNotes, Note } from '@/hooks/useNotes';
+import { useNoteShares, SharedNote } from '@/hooks/useNoteShares';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { LogOut, Sparkles, X, Network } from 'lucide-react';
 
+type SelectedNote = (Note & { permission?: never }) | SharedNote;
+
 export const AppLayout = () => {
   const { notes, loading, createNote, updateNote, deleteNote } = useNotes();
+  const { sharedWithMe, loading: sharedLoading } = useNoteShares();
   const { signOut } = useAuth();
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedNote, setSelectedNote] = useState<SelectedNote | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showGraph, setShowGraph] = useState(false);
 
@@ -22,7 +26,7 @@ export const AppLayout = () => {
     }
   };
 
-  const handleSelectNote = (note: Note) => {
+  const handleSelectNote = (note: SelectedNote) => {
     setSelectedNote(note);
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
@@ -43,6 +47,9 @@ export const AppLayout = () => {
       setSelectedNote((prev) => prev ? { ...prev, ...updates } : null);
     }
   };
+
+  // Check if this is a shared note (has permission property)
+  const isSharedNote = selectedNote && 'permission' in selectedNote;
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
@@ -111,11 +118,13 @@ export const AppLayout = () => {
 
           <NotesList
             notes={notes}
+            sharedNotes={sharedWithMe}
             selectedNote={selectedNote}
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
             onDeleteNote={handleDeleteNote}
             loading={loading}
+            sharedLoading={sharedLoading}
           />
         </div>
       </aside>
@@ -135,6 +144,8 @@ export const AppLayout = () => {
           onUpdateNote={handleUpdateNote}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           showSidebarToggle={!sidebarOpen}
+          isSharedNote={isSharedNote}
+          canEdit={!isSharedNote || (selectedNote as SharedNote)?.permission === 'edit'}
         />
       </main>
     </div>

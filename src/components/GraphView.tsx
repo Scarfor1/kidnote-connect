@@ -144,18 +144,36 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     };
   }, [nodes.length]);
 
-  // Get theme colors from CSS variables
+  // Get theme colors from CSS variables - convert to canvas-compatible format
   const getThemeColors = useCallback(() => {
     const style = getComputedStyle(document.documentElement);
     const primary = style.getPropertyValue('--primary').trim();
     const accent = style.getPropertyValue('--accent').trim();
     const foreground = style.getPropertyValue('--foreground').trim();
     
+    // Canvas requires comma-separated hsla: hsla(h, s%, l%, a)
+    // CSS variables may be space-separated: "140 70% 50%"
+    const formatHsl = (hsl: string) => {
+      const parts = hsl.split(' ');
+      if (parts.length === 3) {
+        return `hsl(${parts[0]}, ${parts[1]}, ${parts[2]})`;
+      }
+      return `hsl(${hsl})`;
+    };
+    
+    const formatHsla = (hsl: string, alpha: number) => {
+      const parts = hsl.split(' ');
+      if (parts.length === 3) {
+        return `hsla(${parts[0]}, ${parts[1]}, ${parts[2]}, ${alpha})`;
+      }
+      return `hsla(${hsl}, ${alpha})`;
+    };
+    
     return {
-      primary: `hsl(${primary})`,
-      primaryAlpha: (alpha: number) => `hsla(${primary}, ${alpha})`,
-      accent: `hsl(${accent})`,
-      foreground: `hsl(${foreground})`,
+      primary: formatHsl(primary),
+      primaryAlpha: (alpha: number) => formatHsla(primary, alpha),
+      accent: formatHsl(accent),
+      foreground: formatHsl(foreground),
     };
   }, []);
 

@@ -3,7 +3,7 @@ import { Note } from '@/hooks/useNotes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Share2, Check, Copy, Menu, Sparkles, Eye, Edit3, Users, Lock } from 'lucide-react';
+import { Share2, Check, Copy, Menu, Sparkles, Eye, Edit3, Users, Lock, Minus, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   Popover,
@@ -36,6 +36,9 @@ const isFullNote = (note: BaseNote): note is Note => {
   return 'is_shared' in note && 'share_id' in note;
 };
 
+const FONT_SIZES = [14, 16, 18, 20, 22, 24];
+const DEFAULT_FONT_SIZE = 18;
+
 export const NoteEditor = ({
   note,
   onUpdateNote,
@@ -48,8 +51,31 @@ export const NoteEditor = ({
   const [content, setContent] = useState('');
   const [copied, setCopied] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem('note-editor-font-size');
+    return saved ? parseInt(saved, 10) : DEFAULT_FONT_SIZE;
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
+
+  // Save font size preference
+  useEffect(() => {
+    localStorage.setItem('note-editor-font-size', fontSize.toString());
+  }, [fontSize]);
+
+  const increaseFontSize = () => {
+    const currentIndex = FONT_SIZES.indexOf(fontSize);
+    if (currentIndex < FONT_SIZES.length - 1) {
+      setFontSize(FONT_SIZES[currentIndex + 1]);
+    }
+  };
+
+  const decreaseFontSize = () => {
+    const currentIndex = FONT_SIZES.indexOf(fontSize);
+    if (currentIndex > 0) {
+      setFontSize(FONT_SIZES[currentIndex - 1]);
+    }
+  };
 
   useEffect(() => {
     if (note) {
@@ -250,7 +276,7 @@ export const NoteEditor = ({
       {/* Editor / Preview */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {isPreview || !canEdit ? (
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4" style={{ fontSize: `${fontSize}px` }}>
             <MarkdownRenderer content={content} className="animate-fade-in" />
           </div>
         ) : (
@@ -259,7 +285,8 @@ export const NoteEditor = ({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Start writing your thoughts... Use Markdown for formatting!"
-            className="flex-1 w-full text-lg leading-relaxed placeholder:text-muted-foreground/50 font-mono p-4 bg-transparent resize-none border-none focus:outline-none focus:ring-0 focus-visible:ring-0"
+            className="flex-1 w-full leading-relaxed placeholder:text-muted-foreground/50 font-mono p-4 bg-transparent resize-none border-none focus:outline-none focus:ring-0 focus-visible:ring-0 whitespace-pre-wrap break-words overflow-wrap-anywhere"
+            style={{ fontSize: `${fontSize}px` }}
           />
         )}
       </div>
@@ -271,7 +298,29 @@ export const NoteEditor = ({
           <span className="mx-2">•</span>
           <span>{content.length} characters</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Font size controls */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={decreaseFontSize}
+              disabled={fontSize === FONT_SIZES[0]}
+            >
+              <Minus className="w-3 h-3" />
+            </Button>
+            <span className="w-8 text-center">{fontSize}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={increaseFontSize}
+              disabled={fontSize === FONT_SIZES[FONT_SIZES.length - 1]}
+            >
+              <Plus className="w-3 h-3" />
+            </Button>
+          </div>
           <span className="hidden sm:inline text-muted-foreground/60">
             {!canEdit ? '🔒 View only' : isPreview ? '📖 Preview mode' : '✍️ Edit mode'}
           </span>

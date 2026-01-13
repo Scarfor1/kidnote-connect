@@ -3,11 +3,14 @@ import { NotesList } from './NotesList';
 import { NoteEditor } from './NoteEditor';
 import { GraphView } from './GraphView';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { NoteTemplates, NoteTemplate } from './NoteTemplates';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { useNotes, Note } from '@/hooks/useNotes';
 import { useNoteShares, SharedNote } from '@/hooks/useNoteShares';
 import { useAuth } from '@/hooks/useAuth';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X, Network } from 'lucide-react';
+import { LogOut, Sparkles, X, Network, Keyboard, LayoutTemplate } from 'lucide-react';
 
 type SelectedNote = (Note & { permission?: never }) | SharedNote;
 
@@ -18,12 +21,20 @@ export const AppLayout = () => {
   const [selectedNote, setSelectedNote] = useState<SelectedNote | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showGraph, setShowGraph] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
-  const handleCreateNote = async () => {
-    const newNote = await createNote();
+  const handleCreateNote = async (template?: NoteTemplate) => {
+    const title = template?.title || undefined;
+    const content = template?.content || undefined;
+    const newNote = await createNote(title, content);
     if (newNote) {
       setSelectedNote(newNote);
     }
+  };
+
+  const handleTemplateSelect = (template: NoteTemplate) => {
+    handleCreateNote(template);
   };
 
   const handleSelectNote = (note: SelectedNote) => {
@@ -47,6 +58,37 @@ export const AppLayout = () => {
       setSelectedNote((prev) => prev ? { ...prev, ...updates } : null);
     }
   };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'n',
+      ctrlKey: true,
+      action: () => setShowTemplates(true),
+      description: 'New note from template',
+    },
+    {
+      key: 't',
+      ctrlKey: true,
+      action: () => setShowTemplates(true),
+      description: 'Open templates',
+    },
+    {
+      key: '/',
+      ctrlKey: true,
+      action: () => setShowShortcuts(true),
+      description: 'Show shortcuts',
+    },
+    {
+      key: 'Escape',
+      action: () => {
+        setShowShortcuts(false);
+        setShowTemplates(false);
+        setShowGraph(false);
+      },
+      description: 'Close dialogs',
+    },
+  ]);
 
   // Check if this is a shared note (has permission property)
   const isSharedNote = selectedNote && 'permission' in selectedNote;
@@ -85,6 +127,26 @@ export const AppLayout = () => {
               </span>
             </div>
             <div className="flex items-center gap-1">
+              {/* Templates Button */}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setShowTemplates(true)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Templates (Ctrl+T)"
+              >
+                <LayoutTemplate className="w-4 h-4" />
+              </Button>
+              {/* Shortcuts Button */}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setShowShortcuts(true)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Shortcuts (Ctrl+/)"
+              >
+                <Keyboard className="w-4 h-4" />
+              </Button>
               {/* Graph View Button */}
               <Button
                 variant="ghost"
@@ -148,6 +210,19 @@ export const AppLayout = () => {
           canEdit={!isSharedNote || (selectedNote as SharedNote)?.permission === 'edit'}
         />
       </main>
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsDialog
+        open={showShortcuts}
+        onOpenChange={setShowShortcuts}
+      />
+
+      {/* Templates Dialog */}
+      <NoteTemplates
+        open={showTemplates}
+        onOpenChange={setShowTemplates}
+        onSelectTemplate={handleTemplateSelect}
+      />
     </div>
   );
 };

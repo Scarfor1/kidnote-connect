@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Note } from '@/hooks/useNotes';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -97,6 +98,68 @@ export const NoteEditor = ({
     const timer = setTimeout(saveNote, 500);
     return () => clearTimeout(timer);
   }, [title, content, saveNote]);
+
+  // Apply markdown formatting
+  const applyFormatting = useCallback((prefix: string, suffix: string = prefix) => {
+    const textarea = textareaRef.current;
+    if (!textarea || isPreview || !canEdit) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    const beforeText = content.substring(0, start);
+    const afterText = content.substring(end);
+
+    const newContent = `${beforeText}${prefix}${selectedText || 'text'}${suffix}${afterText}`;
+    setContent(newContent);
+
+    // Set cursor position
+    setTimeout(() => {
+      textarea.focus();
+      if (selectedText) {
+        textarea.setSelectionRange(start + prefix.length, end + prefix.length);
+      } else {
+        textarea.setSelectionRange(start + prefix.length, start + prefix.length + 4);
+      }
+    }, 0);
+  }, [content, isPreview, canEdit]);
+
+  // Keyboard shortcuts for formatting
+  useKeyboardShortcuts([
+    {
+      key: 'b',
+      ctrlKey: true,
+      action: () => applyFormatting('**'),
+      description: 'Bold',
+    },
+    {
+      key: 'i',
+      ctrlKey: true,
+      action: () => applyFormatting('*'),
+      description: 'Italic',
+    },
+    {
+      key: 'k',
+      ctrlKey: true,
+      action: () => applyFormatting('[', '](url)'),
+      description: 'Link',
+    },
+    {
+      key: 's',
+      ctrlKey: true,
+      action: () => {
+        saveNote();
+        toast({ title: 'Saved!', description: 'Note saved successfully' });
+      },
+      description: 'Save',
+    },
+    {
+      key: 'p',
+      ctrlKey: true,
+      action: () => canEdit && setIsPreview(!isPreview),
+      description: 'Toggle preview',
+    },
+  ]);
 
   const handleShare = () => {
     if (note && isFullNote(note)) {

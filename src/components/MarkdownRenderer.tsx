@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -12,7 +13,7 @@ export const MarkdownRenderer = ({ content, className = '' }: MarkdownRendererPr
   return (
     <div className={`markdown-content prose prose-invert max-w-none ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
           code({ node, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');

@@ -12,13 +12,16 @@ import {
   Heading2, 
   Heading3,
   Link,
-  CheckSquare
+  CheckSquare,
+  Image,
+  Loader2
 } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useImageUpload } from '@/hooks/useImageUpload';
 
 interface MarkdownToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
@@ -51,6 +54,38 @@ const formatActions: FormatAction[] = [
 ];
 
 export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: MarkdownToolbarProps) => {
+  const { uploadImage, uploading } = useImageUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadImage(file);
+    if (url) {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const before = content.substring(0, start);
+      const after = content.substring(start);
+      const imageMarkdown = `![image](${url})`;
+      
+      onContentChange(before + imageMarkdown + after);
+      
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = start + imageMarkdown.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 0);
+    }
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const applyFormat = useCallback((action: FormatAction) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -100,7 +135,7 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: Markd
   }, [content, onContentChange, textareaRef]);
 
   return (
-    <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border overflow-x-auto">
+    <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-sidebar-border overflow-x-auto">
       {formatActions.map((action, index) => {
         const Icon = action.icon;
         const showDivider = index === 3 || index === 7 || index === 10;
@@ -128,6 +163,36 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: Markd
           </div>
         );
       })}
+      
+      {/* Image upload button */}
+      <div className="w-px h-5 bg-border mx-1" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          >
+            {uploading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Image className="w-4 h-4" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-xs">
+          Upload Image
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 };

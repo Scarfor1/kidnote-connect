@@ -1,6 +1,6 @@
 import { Note } from '@/hooks/useNotes';
 import { SharedNote } from '@/hooks/useNoteShares';
-import { Plus, Search, FileText, Share2, Trash2, Users, Eye, Edit3 } from 'lucide-react';
+import { Plus, Search, FileText, Share2, Trash2, Users, Eye, Edit3, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -24,6 +24,7 @@ interface NotesListProps {
   onSelectNote: (note: Note | SharedNote) => void;
   onCreateNote: () => void;
   onDeleteNote: (id: string) => void;
+  onOpenTemplates: () => void;
   loading: boolean;
   sharedLoading: boolean;
 }
@@ -35,6 +36,7 @@ export const NotesList = ({
   onSelectNote,
   onCreateNote,
   onDeleteNote,
+  onOpenTemplates,
   loading,
   sharedLoading,
 }: NotesListProps) => {
@@ -59,10 +61,20 @@ export const NotesList = ({
         <div className="flex items-center gap-2 mb-4">
           <h2 className="text-lg font-bold text-sidebar-foreground flex-1">My Notes</h2>
           <Button
+            onClick={onOpenTemplates}
+            variant="ghost"
+            size="icon-sm"
+            className="rounded-lg text-muted-foreground hover:text-foreground"
+            title="Templates (Ctrl+T)"
+          >
+            <LayoutTemplate className="w-4 h-4" />
+          </Button>
+          <Button
             onClick={onCreateNote}
             variant="glow"
             size="icon-sm"
             className="rounded-lg"
+            title="New note (Ctrl+N)"
           >
             <Plus className="w-4 h-4" />
           </Button>

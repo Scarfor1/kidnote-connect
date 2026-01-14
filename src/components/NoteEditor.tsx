@@ -212,7 +212,7 @@ export const NoteEditor = ({
   return (
     <div className="h-full flex flex-col bg-background animate-fade-in">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-border">
+      <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
         {showSidebarToggle && (
           <Button
             variant="ghost"
@@ -355,7 +355,7 @@ export const NoteEditor = ({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
+      <div className="px-4 py-2 border-t border-sidebar-border text-xs text-muted-foreground flex items-center justify-between">
         <div>
           <span>Last saved {new Date(note.updated_at).toLocaleTimeString()}</span>
           <span className="mx-2">•</span>

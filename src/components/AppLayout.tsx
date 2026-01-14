@@ -10,7 +10,7 @@ import { useNoteShares, SharedNote } from '@/hooks/useNoteShares';
 import { useAuth } from '@/hooks/useAuth';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X, Network, Keyboard, LayoutTemplate } from 'lucide-react';
+import { LogOut, Sparkles, X, Network, Keyboard } from 'lucide-react';
 
 type SelectedNote = (Note & { permission?: never }) | SharedNote;
 
@@ -127,16 +127,6 @@ export const AppLayout = () => {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {/* Templates Button */}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setShowTemplates(true)}
-                className="text-muted-foreground hover:text-foreground"
-                title="Templates (Ctrl+T)"
-              >
-                <LayoutTemplate className="w-4 h-4" />
-              </Button>
               {/* Shortcuts Button */}
               <Button
                 variant="ghost"
@@ -185,6 +175,7 @@ export const AppLayout = () => {
             onSelectNote={handleSelectNote}
             onCreateNote={handleCreateNote}
             onDeleteNote={handleDeleteNote}
+            onOpenTemplates={() => setShowTemplates(true)}
             loading={loading}
             sharedLoading={sharedLoading}
           />

@@ -8,7 +8,12 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileText, CheckSquare, Calendar, Lightbulb, Users, Target, BookOpen, Briefcase } from 'lucide-react';
+import { 
+  CheckSquare, Calendar, Lightbulb, Users, Target, BookOpen, Briefcase, 
+  Plus, Trash2, Globe, Lock 
+} from 'lucide-react';
+import { useUserTemplates, UserTemplate } from '@/hooks/useUserTemplates';
+import { CreateTemplateDialog } from './CreateTemplateDialog';
 
 export interface NoteTemplate {
   id: string;
@@ -18,7 +23,7 @@ export interface NoteTemplate {
   content: string;
 }
 
-export const NOTE_TEMPLATES: NoteTemplate[] = [
+export const DEFAULT_TEMPLATES: NoteTemplate[] = [
   {
     id: 'meeting',
     name: 'Meeting Notes',
@@ -197,13 +202,6 @@ export const NOTE_TEMPLATES: NoteTemplate[] = [
 
 `,
   },
-  {
-    id: 'blank',
-    name: 'Blank Note',
-    icon: <FileText className="w-5 h-5" />,
-    title: 'Untitled',
-    content: '',
-  },
 ];
 
 interface NoteTemplatesProps {
@@ -219,6 +217,9 @@ export const NoteTemplates = ({
   onSelectTemplate,
   trigger,
 }: NoteTemplatesProps) => {
+  const { templates: userTemplates, createTemplate, deleteTemplate, loading } = useUserTemplates();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+
   const formatDate = () => {
     return new Date().toLocaleDateString('en-US', {
       weekday: 'long',
@@ -228,46 +229,132 @@ export const NoteTemplates = ({
     });
   };
 
-  const handleSelect = (template: NoteTemplate) => {
+  const handleSelect = (template: NoteTemplate | UserTemplate) => {
     const date = formatDate();
     const formattedTemplate = {
-      ...template,
-      title: template.title.replace('{{date}}', date),
+      id: template.id,
+      name: template.name,
+      icon: null,
+      title: template.title.replace(/\{\{date\}\}/g, date),
       content: template.content.replace(/\{\{date\}\}/g, date),
     };
     onSelectTemplate(formattedTemplate);
     onOpenChange(false);
   };
 
+  const handleCreateTemplate = async (
+    name: string,
+    title: string,
+    content: string,
+    isShared: boolean
+  ) => {
+    await createTemplate(name, title, content, isShared);
+  };
+
+  const handleDeleteTemplate = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await deleteTemplate(id);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Choose a Template</DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="max-h-[60vh]">
-          <div className="grid grid-cols-2 gap-3 p-1">
-            {NOTE_TEMPLATES.map((template) => (
-              <button
-                key={template.id}
-                onClick={() => handleSelect(template)}
-                className="flex flex-col items-center gap-3 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors">
-                  {template.icon}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Choose a Template</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 p-1">
+              {/* User Templates Section */}
+              {userTemplates.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                    Your Templates
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {userTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        onClick={() => handleSelect(template)}
+                        className="relative flex flex-col items-center gap-3 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                      >
+                        <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                          <BookOpen className="w-5 h-5" />
+                        </div>
+                        <span className="font-medium text-sm text-center">
+                          {template.name}
+                        </span>
+                        <div className="absolute top-2 right-2 flex gap-1">
+                          {template.is_shared ? (
+                            <Globe className="w-3 h-3 text-muted-foreground" />
+                          ) : (
+                            <Lock className="w-3 h-3 text-muted-foreground" />
+                          )}
+                          <button
+                            onClick={(e) => handleDeleteTemplate(e, template.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-destructive"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <span className="font-medium text-sm text-center">
-                  {template.name}
-                </span>
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
-        <p className="text-xs text-muted-foreground text-center">
-          Press <kbd className="px-1.5 py-0.5 bg-secondary rounded text-xs">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 bg-secondary rounded text-xs">T</kbd> to open templates
-        </p>
-      </DialogContent>
-    </Dialog>
+              )}
+
+              {/* Default Templates Section */}
+              <div>
+                {userTemplates.length > 0 && (
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                    Built-in Templates
+                  </h3>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  {DEFAULT_TEMPLATES.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleSelect(template)}
+                      className="flex flex-col items-center gap-3 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                        {template.icon}
+                      </div>
+                      <span className="font-medium text-sm text-center">
+                        {template.name}
+                      </span>
+                    </button>
+                  ))}
+
+                  {/* Create Template Button */}
+                  <button
+                    onClick={() => setShowCreateDialog(true)}
+                    className="flex flex-col items-center gap-3 p-4 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 transition-all text-left group"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors">
+                      <Plus className="w-5 h-5" />
+                    </div>
+                    <span className="font-medium text-sm text-center">
+                      Create Template
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          <p className="text-xs text-muted-foreground text-center">
+            Press <kbd className="px-1.5 py-0.5 bg-secondary rounded text-xs">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 bg-secondary rounded text-xs">T</kbd> to open templates
+          </p>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Template Dialog */}
+      <CreateTemplateDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSave={handleCreateTemplate}
+      />
+    </>
   );
 };

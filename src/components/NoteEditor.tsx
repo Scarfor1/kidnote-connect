@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, DragEvent } from 'react';
 import { Note } from '@/hooks/useNotes';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useImageUpload } from '@/hooks/useImageUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,12 +53,14 @@ export const NoteEditor = ({
   const [content, setContent] = useState('');
   const [copied, setCopied] = useState(false);
   const [isPreview, setIsPreview] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem('note-editor-font-size');
     return saved ? parseInt(saved, 10) : DEFAULT_FONT_SIZE;
   });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
+  const { uploadImage, uploading } = useImageUpload();
 
   // Save font size preference
   useEffect(() => {
@@ -123,6 +126,52 @@ export const NoteEditor = ({
       }
     }, 0);
   }, [content, isPreview, canEdit]);
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!canEdit || isPreview) return;
+    setIsDragging(true);
+  }, [canEdit, isPreview]);
+
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(async (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (!canEdit || isPreview) return;
+
+    const files = Array.from(e.dataTransfer.files).filter(file => 
+      file.type.startsWith('image/')
+    );
+
+    if (files.length === 0) {
+      toast({
+        title: 'Invalid file',
+        description: 'Please drop an image file',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    for (const file of files) {
+      const imageUrl = await uploadImage(file);
+      if (imageUrl) {
+        const imageMarkdown = `![${file.name}](${imageUrl})\n`;
+        const textarea = textareaRef.current;
+        if (textarea) {
+          const start = textarea.selectionStart || content.length;
+          const newContent = content.slice(0, start) + imageMarkdown + content.slice(start);
+          setContent(newContent);
+        } else {
+          setContent(prev => prev + '\n' + imageMarkdown);
+        }
+      }
+    }
+  }, [canEdit, isPreview, uploadImage, content, toast]);
 
   // Keyboard shortcuts for formatting
   useKeyboardShortcuts([
@@ -210,7 +259,23 @@ export const NoteEditor = ({
   const fullNote = isFullNote(note) ? note : null;
 
   return (
-    <div className="h-full flex flex-col bg-background animate-fade-in">
+    <div 
+      className={`h-full flex flex-col bg-background animate-fade-in relative ${isDragging ? 'ring-2 ring-primary ring-inset' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 backdrop-blur-sm pointer-events-none">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-2">
+              <Plus className="w-8 h-8 text-primary" />
+            </div>
+            <p className="text-lg font-medium text-primary">Drop image here</p>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
         {showSidebarToggle && (
@@ -357,9 +422,15 @@ export const NoteEditor = ({
       {/* Footer */}
       <div className="px-4 py-2 border-t border-sidebar-border text-xs text-muted-foreground flex items-center justify-between">
         <div>
-          <span>Last saved {new Date(note.updated_at).toLocaleTimeString()}</span>
-          <span className="mx-2">•</span>
-          <span>{content.length} characters</span>
+          {uploading ? (
+            <span className="text-primary">Uploading image...</span>
+          ) : (
+            <>
+              <span>Last saved {new Date(note.updated_at).toLocaleTimeString()}</span>
+              <span className="mx-2">•</span>
+              <span>{content.length} characters</span>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {/* Font size controls */}

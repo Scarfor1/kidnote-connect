@@ -4,11 +4,15 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-// Set GITHUB_PAGES=true and REPO_NAME=your-repo-name when building for GitHub Pages
+// GitHub Pages base path notes:
+// - Project pages: https://owner.github.io/repo/  -> base should be "/repo/"
+// - User/Org pages: https://owner.github.io/       -> base should be "/"
 export default defineConfig(({ mode }) => ({
-  // For GitHub Pages, set base to your repo name (e.g., '/my-notes-app/')
-  // Leave empty for Lovable or custom domain deployment
-  base: process.env.GITHUB_PAGES === "true" ? `/${process.env.REPO_NAME || "notes-app"}/` : "/",
+  // Prefer explicit BASE_PATH from CI; otherwise fall back to repo-name base for project pages.
+  base:
+    process.env.GITHUB_PAGES === "true"
+      ? (process.env.BASE_PATH || `/${process.env.REPO_NAME || "notes-app"}/`)
+      : "/",
   server: {
     host: "::",
     port: 8080,

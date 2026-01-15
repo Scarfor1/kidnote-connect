@@ -37,6 +37,8 @@ jobs:
         env:
           GITHUB_PAGES: "true"
           REPO_NAME: ${{ github.event.repository.name }}
+          # User/Org pages repo is usually "<owner>.github.io" and must use base "/".
+          BASE_PATH: ${{ github.event.repository.name == format('{0}.github.io', github.repository_owner) && '/' || format('/{0}/', github.event.repository.name) }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build

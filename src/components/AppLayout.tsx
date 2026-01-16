@@ -5,12 +5,15 @@ import { GraphView } from './GraphView';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { NoteTemplates, NoteTemplate } from './NoteTemplates';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { NoteScannerDialog } from './NoteScannerDialog';
+import { FloatingActionButton } from './FloatingActionButton';
 import { useNotes, Note } from '@/hooks/useNotes';
 import { useNoteShares, SharedNote } from '@/hooks/useNoteShares';
 import { useAuth } from '@/hooks/useAuth';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X, Network, Keyboard } from 'lucide-react';
+import { LogOut, Sparkles, X, Network, Keyboard, Camera } from 'lucide-react';
 
 type SelectedNote = (Note & { permission?: never }) | SharedNote;
 
@@ -18,11 +21,13 @@ export const AppLayout = () => {
   const { notes, loading, createNote, updateNote, deleteNote } = useNotes();
   const { sharedWithMe, loading: sharedLoading } = useNoteShares();
   const { signOut } = useAuth();
+  const isMobile = useIsMobile();
   const [selectedNote, setSelectedNote] = useState<SelectedNote | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showGraph, setShowGraph] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleCreateNote = async (template?: NoteTemplate) => {
     const title = template?.title || undefined;
@@ -30,11 +35,25 @@ export const AppLayout = () => {
     const newNote = await createNote(title, content);
     if (newNote) {
       setSelectedNote(newNote);
+      // On mobile, hide sidebar after creating note
+      if (isMobile) {
+        setSidebarOpen(false);
+      }
     }
   };
 
   const handleTemplateSelect = (template: NoteTemplate) => {
     handleCreateNote(template);
+  };
+
+  const handleScannedNote = async (title: string, content: string) => {
+    const newNote = await createNote(title, content);
+    if (newNote) {
+      setSelectedNote(newNote);
+      if (isMobile) {
+        setSidebarOpen(false);
+      }
+    }
   };
 
   const handleSelectNote = (note: SelectedNote) => {
@@ -118,7 +137,7 @@ export const AppLayout = () => {
         <div className="h-full flex flex-col">
           {/* App Header */}
           <div className="p-4 border-b border-sidebar-border flex items-center justify-between bg-sidebar">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-primary" />
               </div>
@@ -127,12 +146,22 @@ export const AppLayout = () => {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {/* Shortcuts Button */}
+              {/* Scan Notes Button */}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setShowScanner(true)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Scan Notes"
+              >
+                <Camera className="w-4 h-4" />
+              </Button>
+              {/* Shortcuts Button - hide on mobile */}
               <Button
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => setShowShortcuts(true)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground hidden sm:flex"
                 title="Shortcuts (Ctrl+/)"
               >
                 <Keyboard className="w-4 h-4" />
@@ -191,7 +220,7 @@ export const AppLayout = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 pb-20 sm:pb-0">
         <NoteEditor
           note={selectedNote}
           onUpdateNote={handleUpdateNote}
@@ -199,6 +228,7 @@ export const AppLayout = () => {
           showSidebarToggle={!sidebarOpen}
           isSharedNote={isSharedNote}
           canEdit={!isSharedNote || (selectedNote as SharedNote)?.permission === 'edit'}
+          onOpenScanner={() => setShowScanner(true)}
         />
       </main>
 
@@ -213,6 +243,20 @@ export const AppLayout = () => {
         open={showTemplates}
         onOpenChange={setShowTemplates}
         onSelectTemplate={handleTemplateSelect}
+      />
+
+      {/* Note Scanner Dialog */}
+      <NoteScannerDialog
+        open={showScanner}
+        onOpenChange={setShowScanner}
+        onCreateNote={handleScannedNote}
+      />
+
+      {/* Mobile FAB */}
+      <FloatingActionButton
+        onNewNote={() => handleCreateNote()}
+        onOpenTemplates={() => setShowTemplates(true)}
+        onOpenScanner={() => setShowScanner(true)}
       />
     </div>
   );

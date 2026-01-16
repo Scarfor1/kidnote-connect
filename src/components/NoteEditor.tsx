@@ -31,6 +31,7 @@ interface NoteEditorProps {
   showSidebarToggle: boolean;
   isSharedNote?: boolean;
   canEdit?: boolean;
+  onOpenScanner?: () => void;
 }
 
 // Type guard to check if note is a full Note
@@ -48,6 +49,7 @@ export const NoteEditor = ({
   showSidebarToggle,
   isSharedNote = false,
   canEdit = true,
+  onOpenScanner,
 }: NoteEditorProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -397,14 +399,15 @@ export const NoteEditor = ({
         <MarkdownToolbar 
           textareaRef={textareaRef} 
           content={content} 
-          onContentChange={setContent} 
+          onContentChange={setContent}
+          onOpenScanner={onOpenScanner}
         />
       )}
 
       {/* Editor / Preview */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {isPreview || !canEdit ? (
-          <div className="flex-1 overflow-y-auto p-4" style={{ fontSize: `${fontSize}px` }}>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ fontSize: `${fontSize}px` }}>
             <MarkdownRenderer content={content} className="animate-fade-in" />
           </div>
         ) : (
@@ -413,7 +416,7 @@ export const NoteEditor = ({
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Start writing your thoughts... Use Markdown for formatting!"
-            className="flex-1 w-full leading-relaxed placeholder:text-muted-foreground/50 font-mono p-4 bg-transparent resize-none border-none focus:outline-none focus:ring-0 focus-visible:ring-0 whitespace-pre-wrap break-words overflow-wrap-anywhere"
+            className="flex-1 w-full leading-relaxed placeholder:text-muted-foreground/50 font-mono p-4 sm:p-6 bg-transparent resize-none border-none focus:outline-none focus:ring-0 focus-visible:ring-0 whitespace-pre-wrap break-words overflow-wrap-anywhere"
             style={{ fontSize: `${fontSize}px` }}
           />
         )}

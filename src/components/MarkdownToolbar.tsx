@@ -14,7 +14,8 @@ import {
   Link,
   CheckSquare,
   Image,
-  Loader2
+  Loader2,
+  Camera
 } from 'lucide-react';
 import {
   Tooltip,
@@ -27,6 +28,7 @@ interface MarkdownToolbarProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
   content: string;
   onContentChange: (content: string) => void;
+  onOpenScanner?: () => void;
 }
 
 interface FormatAction {
@@ -53,7 +55,7 @@ const formatActions: FormatAction[] = [
   { icon: Link, label: 'Link', prefix: '[', suffix: '](url)', placeholder: 'link text' },
 ];
 
-export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: MarkdownToolbarProps) => {
+export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenScanner }: MarkdownToolbarProps) => {
   const { uploadImage, uploading } = useImageUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -135,7 +137,7 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: Markd
   }, [content, onContentChange, textareaRef]);
 
   return (
-    <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-sidebar-border overflow-x-auto">
+    <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-sidebar-border overflow-x-auto scrollbar-thin">
       {formatActions.map((action, index) => {
         const Icon = action.icon;
         const showDivider = index === 3 || index === 7 || index === 10;
@@ -148,7 +150,7 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: Markd
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => applyFormat(action)}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  className="h-9 w-9 min-w-[36px] text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 >
                   <Icon className="w-4 h-4" />
                 </Button>
@@ -158,7 +160,7 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: Markd
               </TooltipContent>
             </Tooltip>
             {showDivider && (
-              <div className="w-px h-5 bg-border mx-1" />
+              <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
             )}
           </div>
         );
@@ -180,7 +182,7 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: Markd
             size="icon-sm"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            className="h-9 w-9 min-w-[36px] text-muted-foreground hover:text-foreground hover:bg-accent/50"
           >
             {uploading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -193,6 +195,28 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange }: Markd
           Upload Image
         </TooltipContent>
       </Tooltip>
+
+      {/* Scan notes button - shows on all devices */}
+      {onOpenScanner && (
+        <>
+          <div className="w-px h-5 bg-border mx-1" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onOpenScanner}
+                className="h-9 w-9 min-w-[36px] text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              >
+                <Camera className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">
+              Scan Notes
+            </TooltipContent>
+          </Tooltip>
+        </>
+      )}
     </div>
   );
 };

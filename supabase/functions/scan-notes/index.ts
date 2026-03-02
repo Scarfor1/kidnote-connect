@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, imageUrl } = await req.json();
+    const { imageBase64, imageUrl, exactCopy } = await req.json();
     
     if (!imageBase64 && !imageUrl) {
       return new Response(
@@ -25,23 +25,31 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build the image content for the AI
     const imageContent = imageUrl 
       ? { type: "image_url", image_url: { url: imageUrl } }
       : { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } };
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert note transcription assistant. Your task is to convert images of handwritten or printed notes into clean, well-formatted Markdown text.
+    const systemPrompt = exactCopy
+      ? `You are a precise document transcription assistant. Your task is to create an EXACT 1:1 digital copy of the image content.
+
+INSTRUCTIONS:
+1. Transcribe ALL text EXACTLY as written - do NOT fix spelling, grammar, or formatting
+2. Preserve the EXACT layout, spacing, and structure of the original
+3. Keep all text in its original position and order
+4. For handwritten text, transcribe exactly what is written, including any mistakes
+5. For drawings, diagrams, or sketches, describe them in detail using [Drawing: ...] markers
+6. For arrows, lines, or visual connections, describe them as [Arrow: from X to Y] or [Line: ...]
+7. For doodles or decorative elements, note them as [Doodle: description]
+8. For crossed-out or struck-through text, show it as ~~crossed out text~~
+9. For underlined text, use __underlined text__
+10. For circled text or elements, note as [Circled: text]
+11. For highlighted sections, note as [Highlighted: text]
+12. Preserve exact indentation and spacing using spaces
+13. Do NOT reorganize, summarize, or interpret the content
+14. Do NOT add any formatting that isn't in the original
+
+OUTPUT: Return the exact transcription as-is, preserving the original structure.`
+      : `You are an expert note transcription assistant. Your task is to convert images of handwritten or printed notes into clean, well-formatted Markdown text.
 
 INSTRUCTIONS:
 1. Transcribe ALL text from the image accurately, preserving the original meaning
@@ -55,27 +63,39 @@ INSTRUCTIONS:
    - Create tables using Markdown table syntax if tables are present
    - Use > for quoted text or callouts
    - Use --- for horizontal dividers if present
-
 4. Handle diagrams and drawings:
    - Describe diagrams briefly in [brackets], e.g., [Diagram: flowchart showing process A → B → C]
    - If there are arrows or flowcharts, describe the flow clearly
-
 5. Handle mathematical content:
    - Write simple math inline, e.g., x = 5 + 3
    - For complex equations, describe them clearly
-
 6. Quality standards:
    - Fix obvious spelling errors if clear from context
    - Maintain the original organization and layout logic
    - If text is unclear, use [unclear] marker
    - Never add content that isn't in the image
 
-OUTPUT: Return ONLY the transcribed Markdown text, nothing else.`
+OUTPUT: Return ONLY the transcribed Markdown text, nothing else.`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Please transcribe this image of notes into clean Markdown format:" },
+              { type: "text", text: exactCopy 
+                ? "Create an exact 1:1 digital copy of this page, preserving everything exactly as-is:" 
+                : "Please transcribe this image of notes into clean Markdown format:" },
               imageContent
             ]
           }

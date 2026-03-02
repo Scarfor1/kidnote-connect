@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Camera, Upload, Loader2, Check, Edit3, RotateCcw, X } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useNoteScanner } from '@/hooks/useNoteScanner';
 
 interface NoteScannerDialogProps {
@@ -19,6 +21,7 @@ export const NoteScannerDialog = ({ open, onOpenChange, onCreateNote }: NoteScan
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [scannedTitle, setScannedTitle] = useState('');
   const [scannedContent, setScannedContent] = useState('');
+  const [exactCopy, setExactCopy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { scanning, scanImage } = useNoteScanner();
@@ -28,6 +31,7 @@ export const NoteScannerDialog = ({ open, onOpenChange, onCreateNote }: NoteScan
     setPreviewUrl(null);
     setScannedTitle('');
     setScannedContent('');
+    setExactCopy(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   }, []);
@@ -38,24 +42,21 @@ export const NoteScannerDialog = ({ open, onOpenChange, onCreateNote }: NoteScan
   }, [onOpenChange, resetState]);
 
   const processFile = useCallback(async (file: File) => {
-    // Create preview URL
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setStep('processing');
 
-    // Scan the image
-    const result = await scanImage(file);
+    const result = await scanImage(file, exactCopy);
     
     if (result) {
       setScannedTitle(result.suggestedTitle);
       setScannedContent(result.content);
       setStep('review');
     } else {
-      // Reset on failure
       setStep('capture');
       setPreviewUrl(null);
     }
-  }, [scanImage]);
+  }, [scanImage, exactCopy]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -128,6 +129,23 @@ export const NoteScannerDialog = ({ open, onOpenChange, onCreateNote }: NoteScan
               <p className="text-sm text-muted-foreground text-center">
                 Works with handwritten notes, printed text, or mixed content
               </p>
+
+              {/* Scan mode toggle */}
+              <div className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="exact-copy" className="text-sm font-medium">Exact copy mode</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {exactCopy 
+                      ? "1:1 digital copy — preserves text exactly as written, including drawings & doodles" 
+                      : "Smart mode — AI cleans up and formats your notes into Markdown"}
+                  </p>
+                </div>
+                <Switch
+                  id="exact-copy"
+                  checked={exactCopy}
+                  onCheckedChange={setExactCopy}
+                />
+              </div>
             </div>
           )}
 

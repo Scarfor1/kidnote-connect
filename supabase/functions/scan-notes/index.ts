@@ -30,25 +30,52 @@ serve(async (req) => {
       : { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } };
 
     const systemPrompt = exactCopy
-      ? `You are a precise document transcription assistant. Your task is to create an EXACT 1:1 digital copy of the image content.
+      ? `You are an exhaustive document transcription engine. Your ONLY job is to produce a COMPLETE 1:1 digital copy of EVERY piece of content on the page. Missing even a single line, equation, or symbol is a failure.
 
-INSTRUCTIONS:
-1. Transcribe ALL text EXACTLY as written - do NOT fix spelling, grammar, or formatting
-2. Preserve the EXACT layout, spacing, and structure of the original
-3. Keep all text in its original position and order
-4. For handwritten text, transcribe exactly what is written, including any mistakes
-5. For drawings, diagrams, or sketches, describe them in detail using [Drawing: ...] markers
-6. For arrows, lines, or visual connections, describe them as [Arrow: from X to Y] or [Line: ...]
-7. For doodles or decorative elements, note them as [Doodle: description]
-8. For crossed-out or struck-through text, show it as ~~crossed out text~~
-9. For underlined text, use __underlined text__
-10. For circled text or elements, note as [Circled: text]
-11. For highlighted sections, note as [Highlighted: text]
-12. Preserve exact indentation and spacing using spaces
-13. Do NOT reorganize, summarize, or interpret the content
-14. Do NOT add any formatting that isn't in the original
+CRITICAL RULES:
+- Transcribe EVERY SINGLE piece of text, equation, symbol, annotation, label, number, and mark on the page. Do NOT skip ANYTHING.
+- Work systematically: scan from TOP to BOTTOM, LEFT to RIGHT. Go region by region, line by line.
+- If content is unclear or hard to read, still include it using [unclear: best guess] markers. NEVER skip unclear content.
+- Do NOT fix spelling, grammar, or formatting. Reproduce exactly as written, including mistakes.
+- Do NOT add any content that is not in the original image.
+- Do NOT reproduce the background, paper texture, or ruled lines — only the written/printed content.
 
-OUTPUT: Return the exact transcription as-is, preserving the original structure.`
+MATHEMATICAL CONTENT (CRITICAL):
+- Transcribe EVERY equation, formula, and mathematical expression using LaTeX notation.
+- Use $...$ for inline math and $$...$$ for display/block equations.
+- Watch for and correctly transcribe ALL of these:
+  * Fractions: $\\frac{a}{b}$
+  * Integrals: $\\int_{a}^{b} f(x) dx$
+  * Summations: $\\sum_{i=1}^{n}$
+  * Products: $\\prod_{i=1}^{n}$
+  * Limits: $\\lim_{x \\to 0}$
+  * Derivatives: $\\frac{d}{dx}$, $f'(x)$, $\\partial$
+  * Subscripts and superscripts: $x_i$, $x^2$, $x_{i,j}^{2n+1}$
+  * Greek letters: $\\alpha, \\beta, \\gamma, \\delta, \\epsilon, \\theta, \\lambda, \\mu, \\pi, \\sigma, \\phi, \\omega$ etc.
+  * Operators: $\\times, \\div, \\pm, \\mp, \\cdot, \\leq, \\geq, \\neq, \\approx, \\equiv, \\propto$
+  * Vectors/matrices: $\\vec{v}$, $\\hat{x}$, $\\mathbf{A}$, use \\begin{pmatrix}...\\end{pmatrix} for matrices
+  * Set notation: $\\in, \\notin, \\subset, \\cup, \\cap, \\emptyset$
+  * Roots: $\\sqrt{x}$, $\\sqrt[n]{x}$
+  * Arrows: $\\rightarrow, \\leftarrow, \\Rightarrow, \\Leftrightarrow$
+- If equations are numbered in the original (e.g., (1), (2)), preserve those numbers.
+
+LAYOUT & STRUCTURE:
+- Use blank lines to separate distinct regions or groups of content.
+- Use indentation (spaces) to approximate horizontal positioning.
+- For multi-column content, transcribe left column first, then right column, clearly separated.
+- For tables, use Markdown table syntax.
+
+NON-TEXT ELEMENTS:
+- Drawings/diagrams: [Drawing: detailed description of what is drawn]
+- Arrows/lines: [Arrow: from X to Y] or [Line: description]
+- Graphs/plots: [Graph: description of axes, curves, and key points]
+- Circled items: [Circled: content]
+- Crossed-out text: ~~crossed out text~~
+- Underlined text: __underlined text__
+- Boxed equations: [Boxed: equation]
+- Stars, checkmarks, bullets: reproduce with ★, ✓, •
+
+OUTPUT: Return the COMPLETE transcription. Every line, every equation, every symbol. Nothing omitted.`
       : `You are an expert note transcription assistant. Your task is to convert images of handwritten or printed notes into clean, well-formatted Markdown text.
 
 INSTRUCTIONS:
@@ -100,7 +127,7 @@ OUTPUT: Return ONLY the transcribed Markdown text, nothing else.`;
             ]
           }
         ],
-        max_tokens: 4096,
+        max_tokens: 8192,
       }),
     });
 

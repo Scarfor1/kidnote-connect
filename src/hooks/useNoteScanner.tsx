@@ -11,16 +11,14 @@ export const useNoteScanner = () => {
   const [scanning, setScanning] = useState(false);
   const { toast } = useToast();
 
-  const scanImage = useCallback(async (file: File): Promise<ScanResult | null> => {
+  const scanImage = useCallback(async (file: File, exactCopy: boolean = false): Promise<ScanResult | null> => {
     setScanning(true);
     
     try {
-      // Convert file to base64
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
           const result = reader.result as string;
-          // Remove the data URL prefix (data:image/jpeg;base64,)
           const base64Data = result.split(',')[1];
           resolve(base64Data);
         };
@@ -29,7 +27,7 @@ export const useNoteScanner = () => {
       });
 
       const { data, error } = await supabase.functions.invoke('scan-notes', {
-        body: { imageBase64: base64 }
+        body: { imageBase64: base64, exactCopy }
       });
 
       if (error) {

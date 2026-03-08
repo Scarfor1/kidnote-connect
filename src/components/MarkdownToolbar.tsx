@@ -54,6 +54,8 @@ const formatActions: FormatAction[] = [
   { icon: ListOrdered, label: 'Numbered List', prefix: '1. ', suffix: '', placeholder: 'list item', isBlock: true },
   { icon: CheckSquare, label: 'Task', prefix: '- [ ] ', suffix: '', placeholder: 'task', isBlock: true },
   { icon: Link, label: 'Link', prefix: '[', suffix: '](url)', placeholder: 'link text' },
+  { icon: Sigma, label: 'Inline Math', prefix: '$', suffix: '$', placeholder: 'E = mc^2' },
+  { icon: Sigma, label: 'Block Math', prefix: '$$\n', suffix: '\n$$', placeholder: '\\int_0^\\infty e^{-x} dx = 1', isBlock: true },
 ];
 
 export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenScanner }: MarkdownToolbarProps) => {

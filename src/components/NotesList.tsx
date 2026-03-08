@@ -59,7 +59,7 @@ export const NotesList = ({
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-bold text-sidebar-foreground flex-1">My Notes</h2>
+          <h2 className="text-lg font-extrabold text-sidebar-foreground flex-1 tracking-tight">My Notes</h2>
           <Button
             onClick={onOpenTemplates}
             variant="ghost"

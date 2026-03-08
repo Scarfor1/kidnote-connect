@@ -293,7 +293,7 @@
   }
 
   .note-card.active {
-    @apply border-primary bg-primary/8 shadow-md shadow-primary/15;
+    @apply border-primary bg-primary/10 shadow-md shadow-primary/15;
   }
 
   .editor-content {

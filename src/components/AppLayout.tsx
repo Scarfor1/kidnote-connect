@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NotesList } from './NotesList';
 import { NoteEditor } from './NoteEditor';
 import { GraphView } from './GraphView';
-import { ThemeSwitcher } from './ThemeSwitcher';
+import { ThemeSwitcherInline } from './ThemeSwitcher';
 import { NoteTemplates, NoteTemplate } from './NoteTemplates';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { NoteScannerDialog } from './NoteScannerDialog';

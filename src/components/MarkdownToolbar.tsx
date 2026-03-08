@@ -13,6 +13,7 @@ import {
   Heading3,
   Link,
   CheckSquare,
+  Sigma,
   Image,
   Loader2,
   Camera

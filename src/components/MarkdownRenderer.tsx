@@ -16,7 +16,8 @@ export const MarkdownRenderer = ({ content, className = '' }: MarkdownRendererPr
   return (
     <div className={`markdown-content prose prose-invert max-w-none ${className}`}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
+        remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={{
           code({ node, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');

@@ -240,17 +240,17 @@ export const NoteEditor = ({
   if (!note) {
     return (
       <div className="h-full flex items-center justify-center bg-background">
-        <div className="text-center animate-fade-in">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 mb-4">
-            <Sparkles className="w-10 h-10 text-primary" />
+        <div className="text-center animate-scale-in">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-primary/12 mb-5 shadow-lg shadow-primary/15 animate-bounce-gentle">
+            <Sparkles className="w-12 h-12 text-primary" />
           </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            Ready to write?
+          <h2 className="text-3xl font-extrabold text-foreground mb-3 tracking-tight">
+            Ready to write? ✨
           </h2>
-          <p className="text-muted-foreground max-w-sm">
+          <p className="text-muted-foreground text-lg max-w-sm">
             Select a note from the sidebar or create a new one to get started
           </p>
-          <p className="text-muted-foreground/60 text-sm mt-4 max-w-sm">
+          <p className="text-muted-foreground/60 text-sm mt-5 max-w-sm">
             💡 Tip: Use Markdown for formatting and [[Note Title]] to link notes
           </p>
         </div>

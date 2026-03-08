@@ -59,7 +59,7 @@ export const NotesList = ({
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-bold text-sidebar-foreground flex-1">My Notes</h2>
+          <h2 className="text-lg font-extrabold text-sidebar-foreground flex-1 tracking-tight">My Notes</h2>
           <Button
             onClick={onOpenTemplates}
             variant="ghost"
@@ -87,7 +87,7 @@ export const NotesList = ({
             placeholder="Search notes..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-10 bg-sidebar-accent border-sidebar-border text-sidebar-foreground placeholder:text-muted-foreground"
+            className="pl-9 h-11 bg-sidebar-accent border-2 border-sidebar-border text-sidebar-foreground placeholder:text-muted-foreground rounded-xl"
           />
         </div>
       </div>

@@ -137,12 +137,12 @@ export const AppLayout = () => {
         <div className="h-full flex flex-col">
           {/* App Header */}
           <div className="p-4 border-b border-sidebar-border flex items-center justify-between bg-sidebar">
-          <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-primary/15 flex items-center justify-center shadow-sm shadow-primary/20">
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
-              <span className="font-bold text-sidebar-foreground">
-                Notes<span className="text-primary">Hub</span>
+              <span className="font-extrabold text-lg text-sidebar-foreground tracking-tight">
+                Notes<span className="text-gradient">Hub</span>
               </span>
             </div>
             <div className="flex items-center gap-1">

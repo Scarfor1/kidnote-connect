@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Bold, 
@@ -16,13 +16,19 @@ import {
   Sigma,
   Image,
   Loader2,
-  Camera
+  Camera,
+  ChevronDown
 } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useImageUpload } from '@/hooks/useImageUpload';
 
 interface MarkdownToolbarProps {
@@ -54,6 +60,9 @@ const formatActions: FormatAction[] = [
   { icon: ListOrdered, label: 'Numbered List', prefix: '1. ', suffix: '', placeholder: 'list item', isBlock: true },
   { icon: CheckSquare, label: 'Task', prefix: '- [ ] ', suffix: '', placeholder: 'task', isBlock: true },
   { icon: Link, label: 'Link', prefix: '[', suffix: '](url)', placeholder: 'link text' },
+];
+
+const mathActions: FormatAction[] = [
   { icon: Sigma, label: 'Inline Math', prefix: '$', suffix: '$', placeholder: 'E = mc^2' },
   { icon: Sigma, label: 'Block Math', prefix: '$$\n', suffix: '\n$$', placeholder: '\\int_0^\\infty e^{-x} dx = 1', isBlock: true },
 ];
@@ -61,6 +70,7 @@ const formatActions: FormatAction[] = [
 export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenScanner }: MarkdownToolbarProps) => {
   const { uploadImage, uploading } = useImageUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mathOpen, setMathOpen] = useState(false);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,7 +95,6 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenS
       }, 0);
     }
     
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -104,7 +113,6 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenS
     let newEnd: number;
 
     if (action.isBlock) {
-      // For block elements, add at the start of the line
       const lineStart = content.lastIndexOf('\n', start - 1) + 1;
       const beforeLine = content.substring(0, lineStart);
       const afterStart = content.substring(lineStart);
@@ -120,7 +128,6 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenS
         newEnd = newStart + action.placeholder.length;
       }
     } else {
-      // For inline elements
       const textToInsert = selectedText || action.placeholder;
       const before = content.substring(0, start);
       const after = content.substring(end);
@@ -132,7 +139,6 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenS
 
     onContentChange(newText);
 
-    // Use setTimeout to ensure the state has updated
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(newStart, newEnd);
@@ -168,6 +174,48 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenS
           </div>
         );
       })}
+
+      {/* Math dropdown */}
+      <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
+      <Popover open={mathOpen} onOpenChange={setMathOpen}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="h-9 min-w-[44px] px-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 gap-0.5"
+              >
+                <Sigma className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            Math / LaTeX
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent side="bottom" align="start" className="w-48 p-1.5">
+          {mathActions.map((action) => (
+            <button
+              key={action.label}
+              onClick={() => {
+                applyFormat(action);
+                setMathOpen(false);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-accent/50 transition-colors"
+            >
+              <Sigma className="w-4 h-4 text-muted-foreground" />
+              <div className="text-left">
+                <div className="font-medium">{action.label}</div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  {action.label === 'Inline Math' ? '$...$' : '$$...$$'}
+                </div>
+              </div>
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
       
       {/* Image upload button */}
       <div className="w-px h-5 bg-border mx-1" />
@@ -199,7 +247,7 @@ export const MarkdownToolbar = ({ textareaRef, content, onContentChange, onOpenS
         </TooltipContent>
       </Tooltip>
 
-      {/* Scan notes button - shows on all devices */}
+      {/* Scan notes button */}
       {onOpenScanner && (
         <>
           <div className="w-px h-5 bg-border mx-1" />

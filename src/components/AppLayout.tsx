@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NotesList } from './NotesList';
 import { NoteEditor } from './NoteEditor';
 import { GraphView } from './GraphView';
-import { ThemeSwitcher } from './ThemeSwitcher';
+import { ThemeSwitcherInline } from './ThemeSwitcher';
 import { NoteTemplates, NoteTemplate } from './NoteTemplates';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { NoteScannerDialog } from './NoteScannerDialog';
@@ -13,7 +13,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X, Network, Keyboard, Camera } from 'lucide-react';
+import { LogOut, Sparkles, X, Network, Keyboard, Camera, Settings } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 type SelectedNote = (Note & { permission?: never }) | SharedNote;
 
@@ -146,46 +151,52 @@ export const AppLayout = () => {
               </span>
             </div>
             <div className="flex items-center gap-1">
-              {/* Scan Notes Button */}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setShowScanner(true)}
-                className="text-muted-foreground hover:text-foreground"
-                title="Scan Notes"
-              >
-                <Camera className="w-4 h-4" />
-              </Button>
-              {/* Shortcuts Button - hide on mobile */}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setShowShortcuts(true)}
-                className="text-muted-foreground hover:text-foreground hidden sm:flex"
-                title="Shortcuts (Ctrl+/)"
-              >
-                <Keyboard className="w-4 h-4" />
-              </Button>
-              {/* Graph View Button */}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setShowGraph(true)}
-                className="text-muted-foreground hover:text-foreground"
-                title="Graph View"
-              >
-                <Network className="w-4 h-4" />
-              </Button>
-              <ThemeSwitcher />
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={signOut}
-                className="text-muted-foreground hover:text-foreground"
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Settings"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48 p-1.5">
+                  <div className="space-y-0.5">
+                    <button
+                      onClick={() => setShowShortcuts(true)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-accent/50 transition-colors hidden sm:flex"
+                    >
+                      <Keyboard className="w-4 h-4 text-muted-foreground" />
+                      <span>Shortcuts</span>
+                    </button>
+                    <button
+                      onClick={() => setShowGraph(true)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-accent/50 transition-colors"
+                    >
+                      <Network className="w-4 h-4 text-muted-foreground" />
+                      <span>Graph View</span>
+                    </button>
+                    <div className="py-1">
+                      <div className="h-px bg-border" />
+                    </div>
+                    <div className="px-3 py-2">
+                      <ThemeSwitcherInline />
+                    </div>
+                    <div className="py-1">
+                      <div className="h-px bg-border" />
+                    </div>
+                    <button
+                      onClick={signOut}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button
                 variant="ghost"
                 size="icon-sm"

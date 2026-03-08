@@ -13,7 +13,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X, Network, Keyboard, Camera } from 'lucide-react';
+import { LogOut, Sparkles, X, Network, Keyboard, Camera, Settings } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 type SelectedNote = (Note & { permission?: never }) | SharedNote;
 

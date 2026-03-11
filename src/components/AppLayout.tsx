@@ -13,7 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X, Network, Keyboard, Camera, Settings } from 'lucide-react';
+import { LogOut, Sparkles, X, Network, Keyboard, Camera, Settings, HelpCircle } from 'lucide-react';
+import { TutorialDialog } from './TutorialDialog';
 import {
   Popover,
   PopoverContent,

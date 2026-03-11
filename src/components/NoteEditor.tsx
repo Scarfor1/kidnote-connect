@@ -279,7 +279,7 @@ export const NoteEditor = ({
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
+      <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-b border-sidebar-border">
         {showSidebarToggle && (
           <Button
             variant="ghost"
@@ -295,7 +295,7 @@ export const NoteEditor = ({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Note title..."
-          className="flex-1 text-xl font-bold bg-transparent border-none h-auto p-0 focus-visible:ring-0 placeholder:text-muted-foreground"
+          className="flex-1 text-lg sm:text-xl font-bold bg-transparent border-none h-auto p-0 focus-visible:ring-0 placeholder:text-muted-foreground"
           disabled={isPreview || !canEdit}
         />
 
@@ -423,7 +423,7 @@ export const NoteEditor = ({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-sidebar-border text-xs text-muted-foreground flex items-center justify-between">
+      <div className="px-3 sm:px-4 py-2 border-t border-sidebar-border text-[10px] sm:text-xs text-muted-foreground flex items-center justify-between">
         <div>
           {uploading ? (
             <span className="text-primary">Uploading image...</span>

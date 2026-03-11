@@ -87,7 +87,7 @@ export const NotesList = ({
             placeholder="Search notes..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-11 bg-sidebar-accent border-2 border-sidebar-border text-sidebar-foreground placeholder:text-muted-foreground rounded-xl"
+            className="pl-9 h-11 bg-sidebar-accent border-2 border-sidebar-border text-sidebar-foreground placeholder:text-muted-foreground rounded-xl text-base sm:text-sm"
           />
         </div>
       </div>

@@ -272,6 +272,12 @@ export const AppLayout = () => {
         onCreateNote={handleScannedNote}
       />
 
+      {/* Tutorial Dialog */}
+      <TutorialDialog
+        open={showTutorial}
+        onOpenChange={setShowTutorial}
+      />
+
       {/* Mobile FAB */}
       <FloatingActionButton
         onNewNote={() => handleCreateNote()}

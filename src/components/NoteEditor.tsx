@@ -279,7 +279,7 @@ export const NoteEditor = ({
         </div>
       )}
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-sidebar-border">
+      <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border-b border-sidebar-border">
         {showSidebarToggle && (
           <Button
             variant="ghost"

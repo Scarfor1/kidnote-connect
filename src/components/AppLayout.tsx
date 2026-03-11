@@ -13,7 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { LogOut, Sparkles, X, Network, Keyboard, Camera, Settings } from 'lucide-react';
+import { LogOut, Sparkles, X, Network, Keyboard, Camera, Settings, HelpCircle } from 'lucide-react';
+import { TutorialDialog } from './TutorialDialog';
 import {
   Popover,
   PopoverContent,
@@ -33,6 +34,7 @@ export const AppLayout = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const handleCreateNote = async (template?: NoteTemplate) => {
     const title = template?.title || undefined;
@@ -178,6 +180,13 @@ export const AppLayout = () => {
                       <Network className="w-4 h-4 text-muted-foreground" />
                       <span>Graph View</span>
                     </button>
+                    <button
+                      onClick={() => setShowTutorial(true)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-accent/50 transition-colors"
+                    >
+                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                      <span>Tutorial</span>
+                    </button>
                     <div className="py-1">
                       <div className="h-px bg-border" />
                     </div>
@@ -261,6 +270,12 @@ export const AppLayout = () => {
         open={showScanner}
         onOpenChange={setShowScanner}
         onCreateNote={handleScannedNote}
+      />
+
+      {/* Tutorial Dialog */}
+      <TutorialDialog
+        open={showTutorial}
+        onOpenChange={setShowTutorial}
       />
 
       {/* Mobile FAB */}

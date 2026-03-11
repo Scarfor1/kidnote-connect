@@ -180,6 +180,13 @@ export const AppLayout = () => {
                       <Network className="w-4 h-4 text-muted-foreground" />
                       <span>Graph View</span>
                     </button>
+                    <button
+                      onClick={() => setShowTutorial(true)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-foreground hover:bg-accent/50 transition-colors"
+                    >
+                      <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                      <span>Tutorial</span>
+                    </button>
                     <div className="py-1">
                       <div className="h-px bg-border" />
                     </div>

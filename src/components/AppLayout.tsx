@@ -34,6 +34,7 @@ export const AppLayout = () => {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const handleCreateNote = async (template?: NoteTemplate) => {
     const title = template?.title || undefined;

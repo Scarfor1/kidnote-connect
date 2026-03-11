@@ -295,7 +295,7 @@ export const NoteEditor = ({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Note title..."
-          className="flex-1 text-xl font-bold bg-transparent border-none h-auto p-0 focus-visible:ring-0 placeholder:text-muted-foreground"
+          className="flex-1 text-lg sm:text-xl font-bold bg-transparent border-none h-auto p-0 focus-visible:ring-0 placeholder:text-muted-foreground"
           disabled={isPreview || !canEdit}
         />
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize2, Link } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface BaseNote {
   id: string;
@@ -13,6 +14,7 @@ interface GraphViewProps {
   selectedNote: BaseNote | null;
   onSelectNote: (note: BaseNote) => void;
   onClose: () => void;
+  onLinkNotes?: (sourceId: string, targetId: string) => void;
 }
 
 interface NodePosition {
@@ -21,12 +23,10 @@ interface NodePosition {
   y: number;
   vx: number;
   vy: number;
-  targetX: number;
-  targetY: number;
   title: string;
   connections: string[];
-  phase: number; // For ambient floating
-  radius: number; // Animated radius
+  phase: number;
+  radius: number;
   targetRadius: number;
 }
 
@@ -40,37 +40,33 @@ const extractLinks = (content: string): string[] => {
   return links;
 };
 
-// Quadratic bezier control point for curved lines
-const getCurveControl = (x1: number, y1: number, x2: number, y2: number): { cx: number; cy: number } => {
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const offset = dist * 0.15;
-  return { cx: mx - dy / dist * offset, cy: my + dx / dist * offset };
-};
-
-export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphViewProps) => {
+export const GraphView = ({ notes, selectedNote, onSelectNote, onClose, onLinkNotes }: GraphViewProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nodesRef = useRef<NodePosition[]>([]);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [draggedNode, setDraggedNode] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [linkFeedback, setLinkFeedback] = useState<string | null>(null);
   const animationRef = useRef<number>();
   const lastTouchDist = useRef<number | null>(null);
   const timeRef = useRef(0);
   const selectedNoteRef = useRef(selectedNote);
   const hoveredNodeRef = useRef(hoveredNode);
+  const draggedNodeRef = useRef(draggedNode);
+  const dropTargetRef = useRef(dropTarget);
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
+  const { toast } = useToast();
 
-  // Keep refs in sync
   useEffect(() => { selectedNoteRef.current = selectedNote; }, [selectedNote]);
   useEffect(() => { hoveredNodeRef.current = hoveredNode; }, [hoveredNode]);
+  useEffect(() => { draggedNodeRef.current = draggedNode; }, [draggedNode]);
+  useEffect(() => { dropTargetRef.current = dropTarget; }, [dropTarget]);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { panRef.current = pan; }, [pan]);
 
@@ -81,6 +77,7 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     const foreground = style.getPropertyValue('--foreground').trim();
     const background = style.getPropertyValue('--background').trim();
     const muted = style.getPropertyValue('--muted-foreground').trim();
+    const destructive = style.getPropertyValue('--destructive').trim();
     const fmt = (hsl: string) => {
       const p = hsl.split(' ');
       return p.length === 3 ? `hsl(${p[0]}, ${p[1]}, ${p[2]})` : `hsl(${hsl})`;
@@ -98,68 +95,88 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     };
   }, []);
 
-  // Initialize nodes
+  // Initialize nodes — tight cluster around center
   useEffect(() => {
     if (!containerRef.current) return;
     const { width, height } = containerRef.current.getBoundingClientRect();
     const cx = width / 2;
     const cy = height / 2;
+    const count = notes.length;
 
     nodesRef.current = notes.map((note, i) => {
-      const angle = (2 * Math.PI * i) / notes.length;
-      const r = Math.min(width, height) * 0.28;
-      const x = cx + Math.cos(angle) * r + (Math.random() - 0.5) * 40;
-      const y = cy + Math.sin(angle) * r + (Math.random() - 0.5) * 40;
+      const angle = (2 * Math.PI * i) / count;
+      const r = Math.min(width, height) * 0.12 + Math.random() * 30;
       return {
-        id: note.id, x, y, vx: 0, vy: 0, targetX: x, targetY: y,
-        title: note.title, connections: extractLinks(note.content),
-        phase: Math.random() * Math.PI * 2, radius: 6, targetRadius: 7,
+        id: note.id,
+        x: cx + Math.cos(angle) * r,
+        y: cy + Math.sin(angle) * r,
+        vx: 0, vy: 0,
+        title: note.title,
+        connections: extractLinks(note.content),
+        phase: Math.random() * Math.PI * 2,
+        radius: 18,
+        targetRadius: 18,
       };
     });
   }, [notes]);
 
-  // Continuous animation loop — smooth physics + ambient floating + rendering
+  // Animation loop
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
     const animate = () => {
-      timeRef.current += 0.008; // Slow time progression for relaxed feel
+      timeRef.current += 0.006;
       const t = timeRef.current;
       const nodes = nodesRef.current;
       const currentZoom = zoomRef.current;
       const currentPan = panRef.current;
+      const currentDragged = draggedNodeRef.current;
+      const currentDropTarget = dropTargetRef.current;
 
-      // --- Physics (very soft) ---
+      const { width, height } = container.getBoundingClientRect();
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      // --- Physics ---
       for (let i = 0; i < nodes.length; i++) {
-        // Ambient floating — gentle sine wave drift
-        const floatX = Math.sin(t * 0.7 + nodes[i].phase) * 0.3;
-        const floatY = Math.cos(t * 0.5 + nodes[i].phase * 1.3) * 0.3;
-        nodes[i].vx += floatX * 0.02;
-        nodes[i].vy += floatY * 0.02;
+        if (nodes[i].id === currentDragged) continue; // skip dragged node
+
+        // Strong centering force — prevents infinite expansion
+        const toCenterX = (centerX - currentPan.x) / currentZoom - nodes[i].x;
+        const toCenterY = (centerY - currentPan.y) / currentZoom - nodes[i].y;
+        nodes[i].vx += toCenterX * 0.002;
+        nodes[i].vy += toCenterY * 0.002;
+
+        // Gentle ambient float
+        nodes[i].vx += Math.sin(t * 0.5 + nodes[i].phase) * 0.015;
+        nodes[i].vy += Math.cos(t * 0.4 + nodes[i].phase * 1.3) * 0.015;
 
         for (let j = i + 1; j < nodes.length; j++) {
+          if (nodes[j].id === currentDragged) continue;
           const dx = nodes[j].x - nodes[i].x;
           const dy = nodes[j].y - nodes[i].y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
 
-          // Soft repulsion
-          const repulsion = 3000 / (dist * dist);
-          const fx = (dx / dist) * repulsion;
-          const fy = (dy / dist) * repulsion;
-          nodes[i].vx -= fx * 0.3;
-          nodes[i].vy -= fy * 0.3;
-          nodes[j].vx += fx * 0.3;
-          nodes[j].vy += fy * 0.3;
+          // Soft repulsion — weaker to keep them close
+          if (dist < 120) {
+            const repulsion = (120 - dist) * 0.02;
+            const fx = (dx / dist) * repulsion;
+            const fy = (dy / dist) * repulsion;
+            nodes[i].vx -= fx;
+            nodes[i].vy -= fy;
+            nodes[j].vx += fx;
+            nodes[j].vy += fy;
+          }
 
-          // Soft attraction for connections
+          // Attraction for connected nodes — pulls them together
           const connected =
             nodes[i].connections.some(c => nodes[j].title.toLowerCase().includes(c)) ||
             nodes[j].connections.some(c => nodes[i].title.toLowerCase().includes(c));
           if (connected) {
-            const ideal = 150;
-            const force = (dist - ideal) * 0.003;
+            const ideal = 70;
+            const force = (dist - ideal) * 0.008;
             nodes[i].vx += (dx / dist) * force;
             nodes[i].vy += (dy / dist) * force;
             nodes[j].vx -= (dx / dist) * force;
@@ -167,23 +184,26 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
           }
         }
 
-        // Heavy damping for that watery, relaxed movement
-        nodes[i].vx *= 0.92;
-        nodes[i].vy *= 0.92;
+        // Heavy damping
+        nodes[i].vx *= 0.88;
+        nodes[i].vy *= 0.88;
         nodes[i].x += nodes[i].vx;
         nodes[i].y += nodes[i].vy;
+      }
 
-        // Animate radius
-        const isSelected = selectedNoteRef.current?.id === nodes[i].id;
-        const isHovered = hoveredNodeRef.current === nodes[i].id;
-        nodes[i].targetRadius = isSelected ? 14 : isHovered ? 11 : 7;
-        nodes[i].radius += (nodes[i].targetRadius - nodes[i].radius) * 0.08;
+      // Animate radius
+      for (const node of nodes) {
+        const isSelected = selectedNoteRef.current?.id === node.id;
+        const isHovered = hoveredNodeRef.current === node.id;
+        const isDragged = currentDragged === node.id;
+        const isDropTarget = currentDropTarget === node.id;
+        node.targetRadius = isDragged ? 28 : isDropTarget ? 26 : isSelected ? 24 : isHovered ? 22 : 18;
+        node.radius += (node.targetRadius - node.radius) * 0.1;
       }
 
       // --- Render ---
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      const { width, height } = container.getBoundingClientRect();
       canvas.width = width * 2;
       canvas.height = height * 2;
       ctx.scale(2, 2);
@@ -194,69 +214,139 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
       ctx.translate(currentPan.x, currentPan.y);
       ctx.scale(currentZoom, currentZoom);
 
-      // Draw connections — curved, soft, watery lines
+      // Draw connections — blobby organic curves
       nodes.forEach(node => {
         node.connections.forEach(connTitle => {
           const target = nodes.find(n => n.title.toLowerCase().includes(connTitle.toLowerCase()));
           if (target) {
-            const { cx, cy } = getCurveControl(node.x, node.y, target.x, target.y);
-            const dist = Math.sqrt((target.x - node.x) ** 2 + (target.y - node.y) ** 2);
-            const alpha = Math.max(0.06, Math.min(0.25, 1 - dist / 600));
-
-            // Animated wave on connection lines
-            const wave = Math.sin(t * 2 + node.phase) * 0.5 + 0.5;
+            const dx = target.x - node.x;
+            const dy = target.y - node.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const mx = (node.x + target.x) / 2;
+            const my = (node.y + target.y) / 2;
+            const offset = dist * 0.2;
+            const cx = mx - (dy / (dist || 1)) * offset;
+            const cy = my + (dx / (dist || 1)) * offset;
+            const wave = Math.sin(t * 1.5 + node.phase) * 0.5 + 0.5;
+            const alpha = Math.max(0.15, Math.min(0.5, 1 - dist / 400));
 
             ctx.beginPath();
             ctx.moveTo(node.x, node.y);
-            ctx.quadraticCurveTo(cx + Math.sin(t + node.phase) * 3, cy + Math.cos(t + node.phase) * 3, target.x, target.y);
-            ctx.strokeStyle = colors.primaryAlpha(alpha * (0.7 + wave * 0.3));
-            ctx.lineWidth = 1.5 + wave * 0.5;
+            ctx.quadraticCurveTo(
+              cx + Math.sin(t + node.phase) * 4,
+              cy + Math.cos(t + node.phase) * 4,
+              target.x, target.y
+            );
+            ctx.strokeStyle = colors.primaryAlpha(alpha * (0.6 + wave * 0.4));
+            ctx.lineWidth = 3 + wave * 2;
             ctx.lineCap = 'round';
             ctx.stroke();
           }
         });
       });
 
-      // Draw nodes with ambient glow
+      // Draw drag-link preview line
+      if (currentDragged && currentDropTarget) {
+        const src = nodes.find(n => n.id === currentDragged);
+        const tgt = nodes.find(n => n.id === currentDropTarget);
+        if (src && tgt) {
+          ctx.beginPath();
+          ctx.setLineDash([8, 6]);
+          ctx.moveTo(src.x, src.y);
+          ctx.lineTo(tgt.x, tgt.y);
+          ctx.strokeStyle = colors.primaryAlpha(0.7);
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Link icon at midpoint
+          const lx = (src.x + tgt.x) / 2;
+          const ly = (src.y + tgt.y) / 2;
+          ctx.beginPath();
+          ctx.arc(lx, ly, 14, 0, Math.PI * 2);
+          ctx.fillStyle = colors.primaryAlpha(0.9);
+          ctx.fill();
+          ctx.fillStyle = colors.background;
+          ctx.font = '14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🔗', lx, ly);
+        }
+      }
+
+      // Draw nodes — blobby organic circles with soft edges
       nodes.forEach(node => {
         const isSelected = selectedNoteRef.current?.id === node.id;
         const isHovered = hoveredNodeRef.current === node.id;
+        const isDragged = currentDragged === node.id;
+        const isDropTgt = currentDropTarget === node.id;
         const r = node.radius;
-        const pulse = Math.sin(t * 1.5 + node.phase) * 0.5 + 0.5;
+        const pulse = Math.sin(t * 1.2 + node.phase) * 0.5 + 0.5;
 
-        // Outer glow — always present, subtle ambient
-        const glowRadius = r * (3 + pulse * 1.5);
-        const gradient = ctx.createRadialGradient(node.x, node.y, r * 0.5, node.x, node.y, glowRadius);
-        if (isSelected) {
-          gradient.addColorStop(0, colors.primaryAlpha(0.35));
+        // Blobby deformation
+        const blobPhases = [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5];
+
+        // Outer glow — always present
+        const glowR = r * (2.5 + pulse * 0.8);
+        const gradient = ctx.createRadialGradient(node.x, node.y, r * 0.3, node.x, node.y, glowR);
+        if (isDragged || isDropTgt) {
+          gradient.addColorStop(0, colors.primaryAlpha(0.5));
+          gradient.addColorStop(0.5, colors.primaryAlpha(0.15));
+          gradient.addColorStop(1, colors.primaryAlpha(0));
+        } else if (isSelected) {
+          gradient.addColorStop(0, colors.primaryAlpha(0.4));
           gradient.addColorStop(0.5, colors.primaryAlpha(0.1));
           gradient.addColorStop(1, colors.primaryAlpha(0));
         } else if (isHovered) {
-          gradient.addColorStop(0, colors.primaryAlpha(0.25));
+          gradient.addColorStop(0, colors.primaryAlpha(0.3));
           gradient.addColorStop(0.6, colors.primaryAlpha(0.05));
           gradient.addColorStop(1, colors.primaryAlpha(0));
         } else {
-          gradient.addColorStop(0, colors.accentAlpha(0.12 + pulse * 0.06));
+          gradient.addColorStop(0, colors.accentAlpha(0.15 + pulse * 0.08));
           gradient.addColorStop(1, colors.accentAlpha(0));
         }
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
+        ctx.arc(node.x, node.y, glowR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Node circle with soft border
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
-        if (isSelected) {
-          ctx.fillStyle = colors.primary;
+        // Blobby node shape using multiple overlapping circles
+        const drawBlob = () => {
+          ctx.beginPath();
+          const points = 64;
+          for (let p = 0; p < points; p++) {
+            const angle = (p / points) * Math.PI * 2;
+            let blobR = r;
+            for (let b = 0; b < blobPhases.length; b++) {
+              blobR += Math.sin(angle * 3 + blobPhases[b] + t * 0.8 + node.phase) * (r * 0.08);
+            }
+            const px = node.x + Math.cos(angle) * blobR;
+            const py = node.y + Math.sin(angle) * blobR;
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+        };
+
+        drawBlob();
+        if (isDragged) {
+          ctx.fillStyle = colors.primaryAlpha(0.95);
+          ctx.shadowColor = colors.primaryAlpha(0.6);
+          ctx.shadowBlur = 20;
+        } else if (isDropTgt) {
+          ctx.fillStyle = colors.primaryAlpha(0.8);
           ctx.shadowColor = colors.primaryAlpha(0.5);
-          ctx.shadowBlur = 12;
-        } else if (isHovered) {
+          ctx.shadowBlur = 16;
+        } else if (isSelected) {
           ctx.fillStyle = colors.primary;
+          ctx.shadowColor = colors.primaryAlpha(0.4);
+          ctx.shadowBlur = 14;
+        } else if (isHovered) {
+          ctx.fillStyle = colors.primaryAlpha(0.85);
           ctx.shadowColor = colors.primaryAlpha(0.3);
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 10;
         } else {
-          ctx.fillStyle = colors.accentAlpha(0.7 + pulse * 0.3);
+          ctx.fillStyle = colors.accentAlpha(0.6 + pulse * 0.3);
           ctx.shadowColor = 'transparent';
           ctx.shadowBlur = 0;
         }
@@ -264,14 +354,29 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
         ctx.shadowBlur = 0;
 
         // Label
-        ctx.fillStyle = colors.foregroundAlpha(isSelected || isHovered ? 0.95 : 0.6);
-        ctx.font = `${isSelected ? '600 ' : '400 '}${isSelected ? 13 : 11}px Nunito`;
+        const labelAlpha = isDragged || isDropTgt || isSelected || isHovered ? 0.95 : 0.7;
+        ctx.fillStyle = colors.foregroundAlpha(labelAlpha);
+        ctx.font = `${isSelected || isDragged ? '700 ' : '500 '}${isSelected || isDragged ? 13 : 11}px Nunito, system-ui`;
         ctx.textAlign = 'center';
-        const label = node.title.length > 18 ? node.title.slice(0, 18) + '…' : node.title;
-        ctx.fillText(label, node.x, node.y + r + 18);
+        const label = node.title.length > 16 ? node.title.slice(0, 16) + '…' : node.title;
+        ctx.fillText(label, node.x, node.y + r + 20);
+
+        // Drop target indicator text
+        if (isDropTgt && currentDragged) {
+          ctx.fillStyle = colors.primaryAlpha(0.9);
+          ctx.font = '600 10px Nunito, system-ui';
+          ctx.fillText('Drop to link', node.x, node.y - r - 10);
+        }
       });
 
       ctx.restore();
+
+      // Link feedback overlay
+      if (linkFeedback) {
+        ctx.fillStyle = colors.primaryAlpha(0.15);
+        ctx.fillRect(0, 0, width, height);
+      }
+
       animationRef.current = requestAnimationFrame(animate);
     };
 
@@ -279,7 +384,25 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [getThemeColors, notes]);
+  }, [getThemeColors, notes, linkFeedback]);
+
+  // Convert screen coords to graph coords
+  const screenToGraph = useCallback((clientX: number, clientY: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: (clientX - rect.left - panRef.current.x) / zoomRef.current,
+      y: (clientY - rect.top - panRef.current.y) / zoomRef.current,
+    };
+  }, []);
+
+  const findNodeAt = useCallback((gx: number, gy: number, excludeId?: string) => {
+    return nodesRef.current.find(n => {
+      if (excludeId && n.id === excludeId) return false;
+      const dx = n.x - gx, dy = n.y - gy;
+      return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
+    });
+  }, []);
 
   // Wheel zoom
   useEffect(() => {
@@ -302,6 +425,57 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const { x, y } = screenToGraph(e.clientX, e.clientY);
+    const node = findNodeAt(x, y);
+    if (node) {
+      setDraggedNode(node.id);
+    } else {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  };
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const { x, y } = screenToGraph(e.clientX, e.clientY);
+
+    if (draggedNode) {
+      const node = nodesRef.current.find(n => n.id === draggedNode);
+      if (node) {
+        node.x = x;
+        node.y = y;
+        node.vx = 0;
+        node.vy = 0;
+      }
+      // Check for drop target
+      const target = findNodeAt(x, y, draggedNode);
+      setDropTarget(target?.id || null);
+    } else if (isPanning) {
+      setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+    } else {
+      const hovered = findNodeAt(x, y);
+      setHoveredNode(hovered?.id || null);
+    }
+  }, [draggedNode, isPanning, panStart, screenToGraph, findNodeAt]);
+
+  const handleMouseUp = useCallback(() => {
+    if (draggedNode && dropTarget && onLinkNotes) {
+      onLinkNotes(draggedNode, dropTarget);
+      setLinkFeedback(`linked`);
+      setTimeout(() => setLinkFeedback(null), 600);
+    } else if (draggedNode && !dropTarget) {
+      // Just a click — select
+      const wasDragged = nodesRef.current.find(n => n.id === draggedNode);
+      if (wasDragged) {
+        const note = notes.find(n => n.id === wasDragged.id);
+        if (note) onSelectNote(note);
+      }
+    }
+    setDraggedNode(null);
+    setDropTarget(null);
+    setIsPanning(false);
+  }, [draggedNode, dropTarget, onLinkNotes, notes, onSelectNote]);
+
   // Touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -309,10 +483,16 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       lastTouchDist.current = Math.sqrt(dx * dx + dy * dy);
     } else if (e.touches.length === 1) {
-      setIsDragging(true);
-      setDragStart({ x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y });
+      const { x, y } = screenToGraph(e.touches[0].clientX, e.touches[0].clientY);
+      const node = findNodeAt(x, y);
+      if (node) {
+        setDraggedNode(node.id);
+      } else {
+        setIsPanning(true);
+        setPanStart({ x: e.touches[0].clientX - panRef.current.x, y: e.touches[0].clientY - panRef.current.y });
+      }
     }
-  }, [pan]);
+  }, [screenToGraph, findNodeAt]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     e.preventDefault();
@@ -335,72 +515,35 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
         });
       }
       lastTouchDist.current = dist;
-    } else if (e.touches.length === 1 && isDragging) {
-      setPan({ x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y });
-    }
-  }, [isDragging, dragStart]);
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    // Tap to select
-    if (e.changedTouches.length === 1) {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.changedTouches[0].clientX - rect.left - pan.x) / zoom;
-        const y = (e.changedTouches[0].clientY - rect.top - pan.y) / zoom;
-        const clicked = nodesRef.current.find(n => {
-          const dx = n.x - x, dy = n.y - y;
-          return Math.sqrt(dx * dx + dy * dy) < 28;
-        });
-        if (clicked) {
-          const note = notes.find(n => n.id === clicked.id);
-          if (note) onSelectNote(note);
+    } else if (e.touches.length === 1) {
+      const { x, y } = screenToGraph(e.touches[0].clientX, e.touches[0].clientY);
+      if (draggedNode) {
+        const node = nodesRef.current.find(n => n.id === draggedNode);
+        if (node) {
+          node.x = x;
+          node.y = y;
+          node.vx = 0;
+          node.vy = 0;
         }
+        const target = findNodeAt(x, y, draggedNode);
+        setDropTarget(target?.id || null);
+      } else if (isPanning) {
+        setPan({ x: e.touches[0].clientX - panStart.x, y: e.touches[0].clientY - panStart.y });
       }
     }
-    setIsDragging(false);
+  }, [draggedNode, isPanning, panStart, screenToGraph, findNodeAt]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (draggedNode && dropTarget && onLinkNotes) {
+      onLinkNotes(draggedNode, dropTarget);
+      setLinkFeedback(`linked`);
+      setTimeout(() => setLinkFeedback(null), 600);
+    }
+    setDraggedNode(null);
+    setDropTarget(null);
+    setIsPanning(false);
     lastTouchDist.current = null;
-  }, [pan, zoom, notes, onSelectNote]);
-
-  // Mouse handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  };
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x) / zoom;
-    const y = (e.clientY - rect.top - pan.y) / zoom;
-    const hovered = nodesRef.current.find(n => {
-      const dx = n.x - x, dy = n.y - y;
-      return Math.sqrt(dx * dx + dy * dy) < 22;
-    });
-    setHoveredNode(hovered?.id || null);
-    if (isDragging) {
-      setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-    }
-  }, [isDragging, dragStart, pan, zoom]);
-
-  const handleMouseUp = () => setIsDragging(false);
-
-  const handleClick = (e: React.MouseEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x) / zoom;
-    const y = (e.clientY - rect.top - pan.y) / zoom;
-    const clicked = nodesRef.current.find(n => {
-      const dx = n.x - x, dy = n.y - y;
-      return Math.sqrt(dx * dx + dy * dy) < 22;
-    });
-    if (clicked) {
-      const note = notes.find(n => n.id === clicked.id);
-      if (note) onSelectNote(note);
-    }
-  };
+  }, [draggedNode, dropTarget, onLinkNotes]);
 
   const handleZoom = (delta: number) => {
     setZoom(prev => Math.max(0.3, Math.min(3, prev + delta)));
@@ -416,7 +559,7 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
           <span className="text-xl sm:text-2xl">🗺️</span>
           <h2 className="text-base sm:text-xl font-bold truncate">Graph View</h2>
           <span className="text-xs text-muted-foreground hidden sm:inline">
-            {notes.length} notes · [[Note Title]] to link
+            Drag a note onto another to link them
           </span>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -424,12 +567,20 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
         </Button>
       </div>
 
-      {/* Mobile note count */}
+      {/* Mobile hint */}
       <div className="absolute top-[52px] left-3 sm:hidden z-10">
         <span className="text-[10px] text-muted-foreground bg-card/70 backdrop-blur-sm px-2 py-0.5 rounded-full border border-border/50">
-          {notes.length} notes · tap to open
+          {notes.length} notes · drag to link · tap to open
         </span>
       </div>
+
+      {/* Link feedback toast */}
+      {linkFeedback && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium shadow-lg animate-fade-in flex items-center gap-2">
+          <Link className="w-4 h-4" />
+          Notes linked!
+        </div>
+      )}
 
       {/* Controls */}
       <div className="absolute bottom-6 safe-area-bottom left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-card/80 backdrop-blur-md border border-border/50 rounded-2xl p-1.5 shadow-xl z-10">
@@ -458,7 +609,6 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          onClick={handleClick}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -467,19 +617,19 @@ export const GraphView = ({ notes, selectedNote, onSelectNote, onClose }: GraphV
 
       {/* Legend — desktop only */}
       <div className="absolute bottom-6 right-6 bg-card/70 backdrop-blur-md border border-border/50 rounded-2xl p-4 shadow-xl z-10 hidden md:block">
-        <p className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">Legend</p>
+        <p className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">How to use</p>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-primary shadow-sm shadow-primary/30" />
-            <span className="text-muted-foreground">Selected</span>
+            <div className="w-4 h-4 rounded-full bg-primary shadow-sm shadow-primary/30" />
+            <span className="text-muted-foreground">Drag onto another to link</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-2.5 h-2.5 rounded-full bg-accent/70" />
-            <span className="text-muted-foreground">Notes</span>
+            <div className="w-3 h-3 rounded-full bg-accent/70" />
+            <span className="text-muted-foreground">Click to open note</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-5 h-[1.5px] bg-primary/30 rounded-full" />
-            <span className="text-muted-foreground">Links</span>
+            <div className="w-5 h-[2px] bg-primary/40 rounded-full" />
+            <span className="text-muted-foreground">[[linked]] connection</span>
           </div>
         </div>
       </div>

@@ -98,6 +98,21 @@ export const AppLayout = () => {
 
   const isSharedNote = selectedNote && 'permission' in selectedNote;
 
+  const handleLinkNotes = async (sourceId: string, targetId: string) => {
+    const sourceNote = notes.find(n => n.id === sourceId);
+    const targetNote = notes.find(n => n.id === targetId);
+    if (!sourceNote || !targetNote) return;
+    
+    // Add [[target title]] link to source note's content if not already there
+    const linkText = `[[${targetNote.title}]]`;
+    if (!sourceNote.content.includes(linkText)) {
+      const newContent = sourceNote.content
+        ? `${sourceNote.content}\n\n${linkText}`
+        : linkText;
+      await updateNote(sourceId, { content: newContent });
+    }
+  };
+
   return (
     <div className="h-screen flex overflow-hidden bg-background">
       {showGraph && (
@@ -106,6 +121,7 @@ export const AppLayout = () => {
           selectedNote={selectedNote}
           onSelectNote={handleSelectNote}
           onClose={() => setShowGraph(false)}
+          onLinkNotes={handleLinkNotes}
         />
       )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NotesList } from './NotesList';
 import { NoteEditor } from './NoteEditor';
 import { GraphView } from './GraphView';
@@ -98,20 +98,37 @@ export const AppLayout = () => {
 
   const isSharedNote = selectedNote && 'permission' in selectedNote;
 
+  // Use a ref to track the latest content for each note during rapid linking
+  const pendingContentRef = useRef<Record<string, string>>({});
+
   const handleLinkNotes = async (sourceId: string, targetId: string) => {
     const sourceNote = notes.find(n => n.id === sourceId);
     const targetNote = notes.find(n => n.id === targetId);
     if (!sourceNote || !targetNote) return;
     
-    // Add [[target title]] link to source note's content if not already there
+    // Use pending content if we've already modified this note, otherwise use current
+    const currentContent = pendingContentRef.current[sourceId] ?? sourceNote.content ?? '';
+    
     const linkText = `[[${targetNote.title}]]`;
-    if (!sourceNote.content.includes(linkText)) {
-      const newContent = sourceNote.content
-        ? `${sourceNote.content}\n\n${linkText}`
-        : linkText;
-      await updateNote(sourceId, { content: newContent });
+    if (currentContent.includes(linkText)) return; // Already linked
+    
+    const newContent = currentContent ? `${currentContent}\n\n${linkText}` : linkText;
+    
+    // Track the pending content so subsequent links don't overwrite
+    pendingContentRef.current[sourceId] = newContent;
+    
+    await updateNote(sourceId, { content: newContent });
+    
+    // Update selected note if it's the source
+    if (selectedNote?.id === sourceId) {
+      setSelectedNote(prev => prev ? { ...prev, content: newContent } : null);
     }
   };
+
+  // Clear pending content when notes refresh from DB
+  useEffect(() => {
+    pendingContentRef.current = {};
+  }, [notes]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
